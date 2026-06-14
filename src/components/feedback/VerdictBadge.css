@@ -1,0 +1,28 @@
+.verdict-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  padding: 8px 24px;
+  border-radius: 8px;
+  animation: badge-pop 0.6s ease forwards;
+  pointer-events: none;
+  z-index: 100;
+}
+
+@keyframes badge-pop {
+  0%   { opacity: 0; transform: translate(-50%, -60%) scale(0.6); }
+  30%  { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  70%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -45%) scale(0.9); }
+}
+
+.verdict-badge--perfect { color: #4ade80; text-shadow: 0 0 20px #4ade80; }
+.verdict-badge--good    { color: #86efac; text-shadow: 0 0 10px #86efac; }
+.verdict-badge--late    { color: #facc15; text-shadow: 0 0 10px #facc15; }
+.verdict-badge--early   { color: #facc15; text-shadow: 0 0 10px #facc15; }
+.verdict-badge--miss    { color: #f87171; text-shadow: 0 0 10px #f87171; }
+.verdict-badge--skip    { color: #94a3b8; }

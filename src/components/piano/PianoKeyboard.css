@@ -1,0 +1,77 @@
+.piano-keyboard {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: #111;
+  padding: 4px 8px;
+  user-select: none;
+}
+
+.piano-key {
+  position: relative;
+  cursor: pointer;
+  border-radius: 0 0 4px 4px;
+  transition: background 60ms;
+  flex-shrink: 0;
+}
+
+/* 흰 건반 */
+.piano-key--white {
+  width: 28px;
+  height: 100%;
+  min-height: 100px;
+  background: #f5f5f0;
+  border: 1px solid #999;
+  border-top: none;
+  z-index: 1;
+  margin-right: 1px;
+}
+
+.piano-key--white:hover {
+  background: #e8e8e0;
+}
+
+.piano-key--white.piano-key--active {
+  background: #60b8ff;
+}
+
+.piano-key--white.piano-key--highlight {
+  background: #a8f5a8;
+}
+
+.piano-key--white.piano-key--active.piano-key--highlight {
+  background: #60b8ff;
+}
+
+/* 검은 건반 */
+.piano-key--black {
+  width: 18px;
+  height: 62%;
+  min-height: 62px;
+  background: #1a1a1a;
+  border: 1px solid #000;
+  border-top: none;
+  z-index: 2;
+  margin-left: -9px;
+  margin-right: -9px;
+  border-radius: 0 0 3px 3px;
+}
+
+.piano-key--black:hover {
+  background: #333;
+}
+
+.piano-key--black.piano-key--active {
+  background: #2980d9;
+}
+
+.piano-key--black.piano-key--highlight {
+  background: #2d7a2d;
+}
+
+.piano-key--black.piano-key--active.piano-key--highlight {
+  background: #2980d9;
+}

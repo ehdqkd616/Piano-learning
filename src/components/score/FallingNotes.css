@@ -1,0 +1,11 @@
+.falling-notes {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.falling-notes__canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}

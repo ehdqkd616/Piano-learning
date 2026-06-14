@@ -13,6 +13,18 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    chunkSizeWarningLimit: 1600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-vexflow': ['vexflow'],
+          'vendor-tone': ['tone', '@tonejs/midi'],
+          'vendor-audio': ['pitchy', 'webmidi'],
+          'vendor-db': ['dexie', 'zustand'],
+        },
+      },
+    },
   },
   server: {
     port: 5173,

@@ -1,0 +1,156 @@
+.practice-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #0f0f1a;
+  color: #e2e8f0;
+}
+
+.practice-screen--loading {
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  color: #94a3b8;
+}
+
+/* 상단 헤더 (20%) */
+.practice-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  height: 64px;
+  background: #1a1a2e;
+  border-bottom: 1px solid #2d2d4e;
+  flex-shrink: 0;
+}
+
+.practice-header__info {
+  flex: 1;
+}
+
+.practice-header__info h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.practice-header__info span {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.practice-header__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.practice-header__controls select {
+  background: #2d2d4e;
+  color: #e2e8f0;
+  border: 1px solid #3d3d5e;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.bpm-badge {
+  background: #2d2d4e;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.practice-header__score {
+  text-align: right;
+  min-width: 80px;
+}
+
+.score-display {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #60b8ff;
+  line-height: 1;
+}
+
+.combo-display {
+  font-size: 0.75rem;
+  color: #facc15;
+  font-weight: 600;
+}
+
+/* 중앙 (60%) */
+.practice-main {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* 하단 (20%) */
+.practice-footer {
+  display: flex;
+  flex-direction: column;
+  height: 160px;
+  background: #1a1a2e;
+  border-top: 1px solid #2d2d4e;
+  flex-shrink: 0;
+}
+
+.practice-piano {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.practice-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px;
+  height: 48px;
+}
+
+/* 공통 버튼 */
+.btn {
+  padding: 6px 20px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+  background: #2d2d4e;
+  color: #e2e8f0;
+  transition: background 0.15s;
+}
+
+.btn:hover { background: #3d3d5e; }
+
+.btn--primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn--primary:hover { background: #2563eb; }
+
+.btn--danger {
+  background: #ef4444;
+  color: white;
+}
+
+.btn--danger:hover { background: #dc2626; }
+
+.btn-icon {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.btn-icon:hover { color: #e2e8f0; background: #2d2d4e; }

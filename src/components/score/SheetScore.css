@@ -1,0 +1,14 @@
+.sheet-score {
+  width: 100%;
+  background: #1a1a2e;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sheet-score__canvas {
+  width: 100%;
+}
+
+.sheet-score__canvas svg {
+  filter: brightness(1.1);
+}

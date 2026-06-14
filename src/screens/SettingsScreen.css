@@ -1,0 +1,141 @@
+.settings-screen {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #0f0f1a;
+  color: #e2e8f0;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: #1a1a2e;
+  border-bottom: 1px solid #2d2d4e;
+  flex-shrink: 0;
+}
+
+.settings-header h1 { margin: 0; flex: 1; font-size: 1.2rem; }
+
+.settings-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  max-width: 560px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.settings-section {
+  background: #1a1a2e;
+  border: 1px solid #2d2d4e;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.settings-section h2 {
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.settings-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: 0.875rem;
+}
+
+.settings-input {
+  background: #2d2d4e;
+  border: 1px solid #3d3d5e;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #e2e8f0;
+  font-size: 0.875rem;
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: #60b8ff;
+}
+
+.settings-select {
+  background: #2d2d4e;
+  border: 1px solid #3d3d5e;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #e2e8f0;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.settings-slider {
+  -webkit-appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: #2d2d4e;
+  cursor: pointer;
+  outline: none;
+}
+
+.settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+}
+
+.settings-range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.settings-hint {
+  font-size: 0.75rem;
+  color: #facc15;
+  margin: 4px 0 0;
+}
+
+.input-mode-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.input-mode-btn {
+  flex: 1;
+  padding: 10px;
+  background: #2d2d4e;
+  border: 1px solid #3d3d5e;
+  border-radius: 8px;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.15s;
+}
+
+.input-mode-btn--active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+}
+
+.settings-info p {
+  margin: 4px 0;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.btn { padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.875rem; background: #2d2d4e; color: #e2e8f0; }
+.btn--primary { background: #3b82f6; color: white; }
+.btn-icon { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; font-size: 0.9rem; }
