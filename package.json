@@ -1,0 +1,57 @@
+{
+  "name": "piano-learning",
+  "private": true,
+  "version": "0.1.0",
+  "description": "피아노 교육 소프트웨어 — Piano Learning App",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"vite\" \"electron .\"",
+    "electron:build": "tsc && vite build && electron-builder",
+    "lint": "eslint src --ext ts,tsx"
+  },
+  "dependencies": {
+    "@tonejs/midi": "^2.0.28",
+    "dexie": "^4.0.9",
+    "pitchy": "^4.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "tone": "^15.0.4",
+    "vexflow": "^5.0.0",
+    "webmidi": "^3.1.12",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.15.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "eslint": "^9.15.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.1"
+  },
+  "build": {
+    "appId": "com.pianoedu.app",
+    "productName": "Piano Learning",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    }
+  }
+}
