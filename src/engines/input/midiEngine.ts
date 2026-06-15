@@ -7,21 +7,23 @@ class MidiEngine {
   private access: MIDIAccess | null = null
   private listeners: NoteCallback[] = []
   private connectionListeners: ConnectionCallback[] = []
-  // null = 모든 기기 연결 / Set = 선택한 기기만 연결
+  // null = 모든 기기 활성 / Set = 선택된 기기만 활성
   private selectedIds: Set<string> | null = null
 
   async init(): Promise<MIDIInput[]> {
     if (!navigator.requestMIDIAccess) {
-      throw new Error('Web MIDI API가 이 브라우저에서 지원되지 않습니다.')
+      throw new Error('Web MIDI API가 지원되지 않습니다.')
     }
-    if (this.access) return this.getInputs()
+    if (this.access) {
+      this.ensureHandlers()
+      return this.getInputs()
+    }
     this.access = await navigator.requestMIDIAccess({ sysex: false })
     this.access.onstatechange = () => {
-      this.applyConnections()
-      const inputs = this.getInputs()
-      this.connectionListeners.forEach((cb) => cb(inputs))
+      this.ensureHandlers()
+      this.connectionListeners.forEach((cb) => cb(this.getInputs()))
     }
-    this.applyConnections()
+    this.ensureHandlers()
     return this.getInputs()
   }
 
@@ -30,33 +32,34 @@ class MidiEngine {
     return Array.from(this.access.inputs.values())
   }
 
-  /** 현재 selectedIds에 따라 메시지 핸들러 적용 */
-  private applyConnections(): void {
-    const ids = this.selectedIds
+  /**
+   * 각 MIDIInput에 핸들러를 한 번만 등록.
+   * 핸들러 내부에서 selectedIds를 실시간 확인 → 별도의 disconnect 처리 불필요.
+   */
+  private ensureHandlers(): void {
     this.getInputs().forEach((input) => {
-      if (ids === null || ids.has(input.id)) {
-        input.onmidimessage = (event: MIDIMessageEvent) => this.handleMessage(event)
-      } else {
-        input.onmidimessage = null
+      if (input.onmidimessage) return  // 이미 등록됨
+      const id = input.id
+      input.onmidimessage = (event: MIDIMessageEvent) => {
+        // 선택 상태를 호출 시점에 확인
+        if (this.selectedIds !== null && !this.selectedIds.has(id)) return
+        this.handleMessage(event)
       }
     })
   }
 
-  /** 선택된 기기 ID 목록으로 연결 업데이트 */
+  /** 선택 기기 갱신 — 핸들러 재등록 없이 this.selectedIds만 업데이트 */
   setSelectedInputs(ids: Set<string>): void {
     this.selectedIds = new Set(ids)
-    this.applyConnections()
   }
 
-  /** 현재 선택 상태 반환 (null = 전체 선택) */
   getSelectedIds(): Set<string> | null {
     return this.selectedIds
   }
 
-  /** 전체 연결 (선택 초기화) */
   connectAll(): void {
     this.selectedIds = null
-    this.applyConnections()
+    this.ensureHandlers()
   }
 
   disconnectAll(): void {
