@@ -5,6 +5,7 @@ import { PracticeScreen } from '@/screens/PracticeScreen'
 import { ResultsScreen } from '@/screens/ResultsScreen'
 import { CurriculumScreen } from '@/screens/CurriculumScreen'
 import { SettingsScreen } from '@/screens/SettingsScreen'
+import { FreePlayScreen } from '@/screens/FreePlayScreen'
 
 export function App() {
   return (
@@ -15,6 +16,7 @@ export function App() {
       <Route path="/results/:sessionId" element={<ResultsScreen />} />
       <Route path="/curriculum" element={<CurriculumScreen />} />
       <Route path="/settings" element={<SettingsScreen />} />
+      <Route path="/freeplay" element={<FreePlayScreen />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

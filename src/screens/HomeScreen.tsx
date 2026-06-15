@@ -35,6 +35,7 @@ export function HomeScreen() {
         <div className="sidebar__logo">🎹 Piano</div>
         <ul className="sidebar__menu">
           <li className="sidebar__item sidebar__item--active">홈</li>
+          <li className="sidebar__item" onClick={() => navigate('/freeplay')}>자유 연주 🎹</li>
           <li className="sidebar__item" onClick={() => navigate('/library')}>라이브러리</li>
           <li className="sidebar__item" onClick={() => navigate('/curriculum')}>커리큘럼</li>
           <li className="sidebar__item" onClick={() => navigate('/settings')}>설정</li>

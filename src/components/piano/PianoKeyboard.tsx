@@ -1,12 +1,11 @@
 import { useCallback } from 'react'
 import { usePracticeStore } from '@/store/usePracticeStore'
+import { audioEngine } from '@/engines/audio/audioEngine'
 import './PianoKeyboard.css'
 
-// 피아노 A0(21) ~ C8(108), 총 88건반
 const FIRST_NOTE = 21
 const LAST_NOTE = 108
-
-const BLACK_KEY_PATTERN = [1, 3, 6, 8, 10] // 12음계 내 검은 건반 위치 (0=C 기준)
+const BLACK_KEY_PATTERN = [1, 3, 6, 8, 10]
 
 function isBlack(noteNumber: number): boolean {
   return BLACK_KEY_PATTERN.includes((noteNumber - 12) % 12)
@@ -29,8 +28,8 @@ interface KeyProps {
 function PianoKey({ noteNumber, isActive, isHighlight, onPress, onRelease }: KeyProps) {
   const black = isBlack(noteNumber)
 
-  const handleMouseDown = useCallback(() => onPress(noteNumber), [noteNumber, onPress])
-  const handleMouseUp = useCallback(() => onRelease(noteNumber), [noteNumber, onRelease])
+  const handleDown = useCallback(() => onPress(noteNumber), [noteNumber, onPress])
+  const handleUp = useCallback(() => onRelease(noteNumber), [noteNumber, onRelease])
 
   const className = [
     'piano-key',
@@ -44,35 +43,46 @@ function PianoKey({ noteNumber, isActive, isHighlight, onPress, onRelease }: Key
       className={className}
       data-note={noteNumber}
       data-name={getNoteName(noteNumber)}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onTouchStart={(e) => { e.preventDefault(); handleMouseDown() }}
-      onTouchEnd={(e) => { e.preventDefault(); handleMouseUp() }}
+      onMouseDown={handleDown}
+      onMouseUp={handleUp}
+      onMouseLeave={handleUp}
+      onTouchStart={(e) => { e.preventDefault(); handleDown() }}
+      onTouchEnd={(e) => { e.preventDefault(); handleUp() }}
     />
   )
 }
 
-export function PianoKeyboard() {
-  const activeNotes = usePracticeStore((s) => s.activeNotes)
-  const highlightNotes = usePracticeStore((s) => s.highlightNotes)
+export interface PianoKeyboardProps {
+  /** 추가 판정 콜백 — 내부 visual/audio 처리 후 호출됨 */
+  onNoteOn?: (noteNumber: number, velocity: number) => void
+  onNoteOff?: (noteNumber: number) => void
+  /** 외부에서 activeNotes를 직접 주입할 때 사용 (FreePlay 등) */
+  activeNotes?: Set<number>
+  highlightNotes?: Set<number>
+}
+
+export function PianoKeyboard({ onNoteOn, onNoteOff, activeNotes: activeProp, highlightNotes: highlightProp }: PianoKeyboardProps) {
+  const storeActive = usePracticeStore((s) => s.activeNotes)
+  const storeHighlight = usePracticeStore((s) => s.highlightNotes)
   const pressNote = usePracticeStore((s) => s.pressNote)
   const releaseNote = usePracticeStore((s) => s.releaseNote)
 
-  const handlePress = useCallback((note: number) => {
-    pressNote({
-      noteNumber: note,
-      velocity: 80,
-      timestamp: performance.now(),
-      type: 'on',
-      channel: 0,
-      source: 'virtual',
-    })
-  }, [pressNote])
+  const activeNotes = activeProp ?? storeActive
+  const highlightNotes = highlightProp ?? storeHighlight
+
+  const handlePress = useCallback(async (note: number) => {
+    const velocity = 80
+    await audioEngine.init()
+    audioEngine.noteOn(note, velocity)
+    pressNote({ noteNumber: note, velocity, timestamp: performance.now(), type: 'on', channel: 0, source: 'virtual' })
+    onNoteOn?.(note, velocity)
+  }, [pressNote, onNoteOn])
 
   const handleRelease = useCallback((note: number) => {
+    audioEngine.noteOff(note)
     releaseNote(note)
-  }, [releaseNote])
+    onNoteOff?.(note)
+  }, [releaseNote, onNoteOff])
 
   const notes = Array.from({ length: LAST_NOTE - FIRST_NOTE + 1 }, (_, i) => i + FIRST_NOTE)
 
