@@ -61,14 +61,38 @@ export function PracticeScreen() {
     sessionStartRef.current = new Date().toISOString()
   }, [songId, songs, loadSong])
 
-  // 시간 타이머
+  // 시간 타이머 — wait 모드에서는 타겟 노트가 히트라인 도달 시 시간 정지
   useEffect(() => {
     if (playbackState !== 'playing') {
       cancelAnimationFrame(rafRef.current)
       return
     }
     function tick() {
-      setCurrentTimeMs(performance.now() - startTimeRef.current)
+      const state = usePracticeStore.getState()
+      const elapsed = performance.now() - startTimeRef.current
+
+      if (state.mode === 'wait') {
+        const target = state.scoreNotes[state.currentNoteIndex]
+        if (target && elapsed >= target.startTimeMs) {
+          // 히트라인에 도달 → 정지: startTimeRef를 밀어서 현재 시간을 고정
+          startTimeRef.current = performance.now() - target.startTimeMs
+          setCurrentTimeMs(target.startTimeMs)
+        } else {
+          setCurrentTimeMs(elapsed)
+        }
+      } else {
+        setCurrentTimeMs(elapsed)
+      }
+
+      // 모든 노트 완료 확인
+      if (
+        state.scoreNotes.length > 0 &&
+        state.currentNoteIndex >= state.scoreNotes.length &&
+        state.playbackState === 'playing'
+      ) {
+        state.setPlaybackState('finished')
+      }
+
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
@@ -82,7 +106,7 @@ export function PracticeScreen() {
     verdictTimer.current = setTimeout(() => setShowVerdict(false), 700)
   }, [])
 
-  // MIDI/Mic 이벤트 핸들러 (virtual 건반은 onNoteOn 콜백으로 별도 처리)
+  // MIDI/Mic 이벤트 핸들러
   const handleExternalNoteEvent = useCallback((event: NoteEvent) => {
     if (event.type === 'off') {
       audioEngine.noteOff(event.noteNumber)
@@ -93,6 +117,8 @@ export function PracticeScreen() {
     audioEngine.noteOn(event.noteNumber, event.velocity)
     pressNote(event)
 
+    if (playbackState !== 'playing') return  // 시작 전엔 소리만, 판정 없음
+
     const target = scoreNotes[currentNoteIndex]
     if (!target) return
 
@@ -102,6 +128,8 @@ export function PracticeScreen() {
         recordResult(result)
         showVerdictFor(result.verdict)
         advanceNoteIndex()
+        // wait 모드: 다음 노트 향해 시간 재개 (startTimeRef를 현재 target 시각으로 보정)
+        startTimeRef.current = performance.now() - target.startTimeMs
       } else {
         showVerdictFor('miss')
       }
@@ -111,10 +139,12 @@ export function PracticeScreen() {
       showVerdictFor(result.verdict)
       if (event.noteNumber === target.noteNumber) advanceNoteIndex()
     }
-  }, [scoreNotes, currentNoteIndex, mode, user, pressNote, releaseNote, recordResult, advanceNoteIndex, showVerdictFor])
+  }, [playbackState, scoreNotes, currentNoteIndex, mode, user, pressNote, releaseNote, recordResult, advanceNoteIndex, showVerdictFor])
 
-  // virtual 건반에서 오는 이벤트 (audio/visual은 PianoKeyboard가 이미 처리)
+  // virtual 건반 판정 콜백 (audio/visual은 PianoKeyboard가 이미 처리)
   const handleVirtualNoteOn = useCallback((note: number, velocity: number) => {
+    if (playbackState !== 'playing') return  // 시작 전엔 소리만
+
     const target = scoreNotes[currentNoteIndex]
     if (!target) return
     const event: NoteEvent = { noteNumber: note, velocity, timestamp: performance.now(), type: 'on', channel: 0, source: 'virtual' }
@@ -125,6 +155,7 @@ export function PracticeScreen() {
         recordResult(result)
         showVerdictFor(result.verdict)
         advanceNoteIndex()
+        startTimeRef.current = performance.now() - target.startTimeMs
       } else {
         showVerdictFor('miss')
       }
@@ -134,7 +165,7 @@ export function PracticeScreen() {
       showVerdictFor(result.verdict)
       if (note === target.noteNumber) advanceNoteIndex()
     }
-  }, [scoreNotes, currentNoteIndex, mode, user, recordResult, advanceNoteIndex, showVerdictFor])
+  }, [playbackState, scoreNotes, currentNoteIndex, mode, user, recordResult, advanceNoteIndex, showVerdictFor])
 
   // MIDI 초기화 및 연결
   useEffect(() => {

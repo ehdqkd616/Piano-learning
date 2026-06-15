@@ -5,120 +5,154 @@ import './FallingNotes.css'
 
 const FIRST_NOTE = 21
 const TOTAL_KEYS = 88
-const FALL_DURATION_MS = 2000   // 화면 위→아래 이동 시간
-const LOOK_AHEAD_MS = 2500      // 미리 보여줄 시간 범위
-
+const FALL_DURATION_MS = 2000
+const LOOK_AHEAD_MS = 2600
 const NOTE_COLORS = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#60a5fa', '#a78bfa', '#f472b6']
+const getNoteColor = (n: number) => NOTE_COLORS[n % NOTE_COLORS.length]
 
-function getNoteColor(noteNumber: number): string {
-  return NOTE_COLORS[noteNumber % NOTE_COLORS.length]
-}
-
-function noteXPercent(noteNumber: number): number {
-  return ((noteNumber - FIRST_NOTE) / (TOTAL_KEYS - 1)) * 100
-}
-
-interface FallingNotesProps {
-  notes: ScoreNote[]
-}
+interface FallingNotesProps { notes: ScoreNote[] }
 
 export function FallingNotes({ notes }: FallingNotesProps) {
-  const currentTimeMs = usePracticeStore((s) => s.currentTimeMs)
-  const noteResults = usePracticeStore((s) => s.noteResults)
-  const activeNotes = usePracticeStore((s) => s.activeNotes)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef = useRef<number>(0)
 
+  // 스토어 값들은 ref로 → RAF에서 항상 최신값 읽음
+  const timeRef = useRef(0)
+  const activeNotesRef = useRef<Set<number>>(new Set())
+  const noteResultsRef = useRef<NoteResult[]>([])
+  const highlightNotesRef = useRef<Set<number>>(new Set())
+  const currentNoteIndexRef = useRef(0)
+  const notesRef = useRef(notes)
+  notesRef.current = notes
+
+  // 스토어 구독
+  useEffect(() => {
+    return usePracticeStore.subscribe((state) => {
+      timeRef.current = state.currentTimeMs
+      activeNotesRef.current = state.activeNotes
+      noteResultsRef.current = state.noteResults
+      highlightNotesRef.current = state.highlightNotes
+      currentNoteIndexRef.current = state.currentNoteIndex
+    })
+  }, [])
+
+  // 단일 RAF 루프 (notes 변경 시만 재시작)
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    // ctx는 getContext가 매번 같은 인스턴스를 반환함
+    const dpr = window.devicePixelRatio || 1
+
+    const resize = () => {
+      const w = canvas.offsetWidth
+      const h = canvas.offsetHeight
+      if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+        canvas.width = Math.round(w * dpr)
+        canvas.height = Math.round(h * dpr)
+        const c = canvas.getContext('2d')
+        c?.scale(dpr, dpr)
+      }
+    }
+    resize()
+    const ro = new ResizeObserver(resize)
+    ro.observe(canvas)
 
     function draw() {
-      if (!canvas || !ctx) return
-      const W = canvas.width
-      const H = canvas.height
-      ctx.clearRect(0, 0, W, H)
+      // draw 내에서 직접 null 체크 → TypeScript가 narrowing 유지
+      const el = canvasRef.current
+      const ctx = el?.getContext('2d')
+      if (!el || !ctx) { animRef.current = requestAnimationFrame(draw); return }
 
-      // 배경
+      const cssW = el.offsetWidth
+      const cssH = el.offsetHeight
+      if (cssW === 0 || cssH === 0) { animRef.current = requestAnimationFrame(draw); return }
+
+      ctx.clearRect(0, 0, cssW, cssH)
       ctx.fillStyle = '#0f0f1a'
-      ctx.fillRect(0, 0, W, H)
+      ctx.fillRect(0, 0, cssW, cssH)
 
       // 건반 안내선
       for (let i = 0; i < TOTAL_KEYS; i++) {
-        const x = Math.round((i / (TOTAL_KEYS - 1)) * W)
+        const gx = (i / (TOTAL_KEYS - 1)) * cssW
         ctx.strokeStyle = 'rgba(255,255,255,0.04)'
         ctx.lineWidth = 1
-        ctx.beginPath()
-        ctx.moveTo(x, 0)
-        ctx.lineTo(x, H)
-        ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, cssH); ctx.stroke()
       }
 
-      // 히트 라인
-      const hitY = H - 30
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)'
+      // 히트라인
+      const hitY = cssH - 24
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)'
       ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.moveTo(0, hitY)
-      ctx.lineTo(W, hitY)
-      ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(cssW, hitY); ctx.stroke()
 
-      const now = currentTimeMs
-      const keyWidth = W / TOTAL_KEYS
+      const now = timeRef.current
+      const keyW = cssW / TOTAL_KEYS
+      const currentNotes = notesRef.current
+      const results = noteResultsRef.current
+      const activeNotes = activeNotesRef.current
+      const highlightNotes = highlightNotesRef.current
+      const currentIdx = currentNoteIndexRef.current
 
-      notes.forEach((sn) => {
+      currentNotes.forEach((sn) => {
         const timeToHit = sn.startTimeMs - now
-        if (timeToHit < -200 || timeToHit > LOOK_AHEAD_MS) return
+        if (timeToHit < -300 || timeToHit > LOOK_AHEAD_MS) return
 
-        const result = noteResults.find((r) => r.noteIndex === sn.index)
+        const result = results.find((r) => r.noteIndex === sn.index)
         const progress = 1 - timeToHit / FALL_DURATION_MS
         const y = progress * hitY
 
-        const x = noteXPercent(sn.noteNumber) / 100 * W
-        const w = Math.max(keyWidth * 0.85, 8)
-        const h = Math.max((sn.durationMs / FALL_DURATION_MS) * hitY, 8)
+        const nx = ((sn.noteNumber - FIRST_NOTE) / (TOTAL_KEYS - 1)) * cssW
+        const nw = Math.max(keyW * 0.8, 6)
+        const nh = Math.max((sn.durationMs / FALL_DURATION_MS) * hitY, 6)
+
+        const isTarget = sn.index === currentIdx
+        const isHighlighted = highlightNotes.has(sn.noteNumber)
 
         let color = getNoteColor(sn.noteNumber)
+        let alpha = 0.85
+
         if (result) {
-          color = result.verdict === 'perfect' || result.verdict === 'good'
-            ? '#4ade80' : '#f87171'
+          color = (result.verdict === 'perfect' || result.verdict === 'good') ? '#4ade80' : '#f87171'
+          alpha = 0.35
+        } else if (isTarget || isHighlighted) {
+          color = '#60b8ff'
+          alpha = 1
+          ctx.shadowColor = color
+          ctx.shadowBlur = 14
         }
 
+        ctx.globalAlpha = alpha
         ctx.fillStyle = color
-        ctx.globalAlpha = result ? 0.4 : 0.9
         ctx.beginPath()
-        ctx.roundRect(x - w / 2, y - h, w, h, 3)
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(nx - nw / 2, y - nh, nw, nh, 3)
+        } else {
+          ctx.rect(nx - nw / 2, y - nh, nw, nh)
+        }
         ctx.fill()
+        ctx.shadowBlur = 0
         ctx.globalAlpha = 1
       })
 
-      // 현재 활성 노트 하이라이트
+      // 눌린 건반 히트라인 표시
       activeNotes.forEach((note) => {
-        const x = noteXPercent(note) / 100 * W
-        ctx.fillStyle = 'rgba(96,184,255,0.5)'
-        ctx.fillRect(x - 10, hitY - 10, 20, 20)
+        const ax = ((note - FIRST_NOTE) / (TOTAL_KEYS - 1)) * cssW
+        ctx.fillStyle = 'rgba(96,184,255,0.6)'
+        ctx.shadowColor = '#60b8ff'
+        ctx.shadowBlur = 8
+        ctx.fillRect(ax - 10, hitY - 8, 20, 16)
+        ctx.shadowBlur = 0
       })
 
       animRef.current = requestAnimationFrame(draw)
     }
 
     animRef.current = requestAnimationFrame(draw)
-    return () => cancelAnimationFrame(animRef.current)
-  }, [notes, currentTimeMs, noteResults, activeNotes])
-
-  useEffect(() => {
-    function resize() {
-      const canvas = canvasRef.current
-      if (!canvas) return
-      canvas.width = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
+    return () => {
+      cancelAnimationFrame(animRef.current)
+      ro.disconnect()
     }
-    resize()
-    window.addEventListener('resize', resize)
-    return () => window.removeEventListener('resize', resize)
-  }, [])
+  }, [notes])
 
   return (
     <div className="falling-notes">
