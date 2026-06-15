@@ -7,7 +7,6 @@ class MidiEngine {
   private access: MIDIAccess | null = null
   private listeners: NoteCallback[] = []
   private connectionListeners: ConnectionCallback[] = []
-  private activeInput: MIDIInput | null = null
 
   async init(): Promise<MIDIInput[]> {
     if (!navigator.requestMIDIAccess) {
@@ -16,9 +15,12 @@ class MidiEngine {
     if (this.access) return this.getInputs()
     this.access = await navigator.requestMIDIAccess({ sysex: false })
     this.access.onstatechange = () => {
+      this.connectAll()
       const inputs = this.getInputs()
       this.connectionListeners.forEach((cb) => cb(inputs))
     }
+    // 초기화 시 모든 기기 연결
+    this.connectAll()
     return this.getInputs()
   }
 
@@ -27,27 +29,34 @@ class MidiEngine {
     return Array.from(this.access.inputs.values())
   }
 
-  getActiveInput(): MIDIInput | null {
-    return this.activeInput
+  /** 현재 연결 가능한 모든 MIDI 입력에 메시지 핸들러 등록 */
+  connectAll(): void {
+    this.getInputs().forEach((input) => {
+      input.onmidimessage = (event: MIDIMessageEvent) => this.handleMessage(event)
+    })
   }
 
+  /** 단일 기기 연결 (설정 화면 선택용) */
   connect(input: MIDIInput) {
-    if (this.activeInput) this.activeInput.onmidimessage = null
-    this.activeInput = input
+    // 기존 전체 연결 해제 후 선택 기기만 연결
+    this.disconnectAll()
     input.onmidimessage = (event: MIDIMessageEvent) => this.handleMessage(event)
   }
 
-  disconnect() {
-    if (this.activeInput) {
-      this.activeInput.onmidimessage = null
-      this.activeInput = null
-    }
+  disconnectAll(): void {
+    this.getInputs().forEach((input) => {
+      input.onmidimessage = null
+    })
   }
+
+  disconnect() { this.disconnectAll() }
 
   on(cb: NoteCallback) { this.listeners.push(cb) }
   off(cb: NoteCallback) { this.listeners = this.listeners.filter((l) => l !== cb) }
   onConnection(cb: ConnectionCallback) { this.connectionListeners.push(cb) }
-  offConnection(cb: ConnectionCallback) { this.connectionListeners = this.connectionListeners.filter((l) => l !== cb) }
+  offConnection(cb: ConnectionCallback) {
+    this.connectionListeners = this.connectionListeners.filter((l) => l !== cb)
+  }
 
   private handleMessage(event: MIDIMessageEvent) {
     if (!event.data) return

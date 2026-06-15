@@ -15,14 +15,13 @@ function noteNumberToName(n: number): string {
 
 export function FreePlayScreen() {
   const navigate = useNavigate()
-  const [midiDeviceName, setMidiDeviceName] = useState<string | null>(null)
+  const [midiDevices, setMidiDevices] = useState<MIDIInput[]>([])
   const [pressedNames, setPressedNames] = useState<string[]>([])
 
   const pressNote = usePracticeStore((s) => s.pressNote)
   const releaseNote = usePracticeStore((s) => s.releaseNote)
   const activeNotes = usePracticeStore((s) => s.activeNotes)
 
-  // MIDI 이벤트 처리
   const handleMidiEvent = useCallback(async (event: NoteEvent) => {
     if (event.type === 'on') {
       await audioEngine.init()
@@ -35,28 +34,16 @@ export function FreePlayScreen() {
   }, [pressNote, releaseNote])
 
   useEffect(() => {
-    // 연습 스토어 초기화 (FreePlay용 빈 상태)
     usePracticeStore.getState().resetSession()
 
     midiEngine.init()
-      .then((inputs) => {
-        if (inputs.length > 0) {
-          midiEngine.connect(inputs[0])
-          setMidiDeviceName(inputs[0].name ?? 'MIDI 기기')
-        }
-      })
+      .then((inputs) => setMidiDevices(inputs))
       .catch(() => {})
 
     midiEngine.on(handleMidiEvent)
 
     const handleConnection = (inputs: MIDIInput[]) => {
-      if (inputs.length > 0) {
-        midiEngine.connect(inputs[0])
-        setMidiDeviceName(inputs[0].name ?? 'MIDI 기기')
-      } else {
-        midiEngine.disconnect()
-        setMidiDeviceName(null)
-      }
+      setMidiDevices([...inputs])
     }
     midiEngine.onConnection(handleConnection)
 
@@ -66,27 +53,41 @@ export function FreePlayScreen() {
     }
   }, [handleMidiEvent])
 
-  // 누르고 있는 음 이름 갱신
   useEffect(() => {
     setPressedNames(Array.from(activeNotes).sort((a, b) => a - b).map(noteNumberToName))
   }, [activeNotes])
+
+  const connectedCount = midiDevices.length
 
   return (
     <div className="freeplay-screen">
       <header className="freeplay-header">
         <button className="btn-icon" onClick={() => navigate('/')}>← 홈</button>
         <h1>자유 연주</h1>
-        <div className={`freeplay-midi-status ${midiDeviceName ? 'freeplay-midi-status--connected' : ''}`}>
+        <div className={`freeplay-midi-status ${connectedCount > 0 ? 'freeplay-midi-status--connected' : ''}`}>
           <span className="freeplay-midi-dot" />
-          <span>{midiDeviceName ?? 'MIDI 연결 없음'}</span>
+          <span>{connectedCount > 0 ? `${connectedCount}개 기기 연결됨` : 'MIDI 연결 없음'}</span>
         </div>
       </header>
+
+      {/* MIDI 기기 목록 */}
+      {midiDevices.length > 0 && (
+        <div className="freeplay-device-list">
+          {midiDevices.map((d) => (
+            <span key={d.id} className="freeplay-device-chip">
+              🎹 {d.name ?? 'Unknown'}
+            </span>
+          ))}
+        </div>
+      )}
 
       <main className="freeplay-main">
         <div className="freeplay-note-display">
           {pressedNames.length > 0
             ? <span className="freeplay-note-names">{pressedNames.join('  ·  ')}</span>
-            : <span className="freeplay-note-hint">건반을 눌러보세요</span>
+            : <span className="freeplay-note-hint">
+                {connectedCount > 0 ? 'MIDI 건반 또는 화면 건반을 눌러보세요' : '화면 건반을 눌러보세요'}
+              </span>
           }
         </div>
       </main>

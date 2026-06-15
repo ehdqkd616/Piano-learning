@@ -167,13 +167,12 @@ export function PracticeScreen() {
     }
   }, [playbackState, scoreNotes, currentNoteIndex, mode, user, recordResult, advanceNoteIndex, showVerdictFor])
 
-  // MIDI 초기화 및 연결
+  // MIDI 초기화 — 모든 기기 동시 연결
   useEffect(() => {
     midiEngine.init()
       .then((inputs) => {
         if (inputs.length > 0) {
-          midiEngine.connect(inputs[0])
-          setMidiDeviceName(inputs[0].name ?? 'MIDI 기기')
+          setMidiDeviceName(inputs.map((i) => i.name ?? 'MIDI').join(', '))
         }
       })
       .catch(() => {})
@@ -182,10 +181,8 @@ export function PracticeScreen() {
 
     const handleConnection = (inputs: MIDIInput[]) => {
       if (inputs.length > 0) {
-        midiEngine.connect(inputs[0])
-        setMidiDeviceName(inputs[0].name ?? 'MIDI 기기')
+        setMidiDeviceName(inputs.map((i) => i.name ?? 'MIDI').join(', '))
       } else {
-        midiEngine.disconnect()
         setMidiDeviceName(null)
       }
     }

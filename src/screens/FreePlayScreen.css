@@ -59,6 +59,25 @@
   50% { opacity: 0.5; }
 }
 
+.freeplay-device-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 20px;
+  background: #12122a;
+  border-bottom: 1px solid #2d2d4e;
+  flex-shrink: 0;
+}
+
+.freeplay-device-chip {
+  background: #1e2d1e;
+  border: 1px solid #2d4e2d;
+  color: #4ade80;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
 .freeplay-main {
   flex: 1;
   display: flex;

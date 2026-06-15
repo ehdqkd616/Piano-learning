@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/store/useAppStore'
+import { usePracticeStore } from '@/store/usePracticeStore'
 import { midiEngine } from '@/engines/input/midiEngine'
+import { audioEngine } from '@/engines/audio/audioEngine'
+import { PianoKeyboard } from '@/components/piano/PianoKeyboard'
 import { db } from '@/db'
-import type { UserSettings } from '@/types'
+import type { UserSettings, NoteEvent } from '@/types'
 import './SettingsScreen.css'
 
 export function SettingsScreen() {
@@ -19,11 +22,43 @@ export function SettingsScreen() {
   const [nickname, setNickname] = useState(user?.nickname ?? '피아니스트')
   const [saved, setSaved] = useState(false)
 
+  const pressNote = usePracticeStore((s) => s.pressNote)
+  const releaseNote = usePracticeStore((s) => s.releaseNote)
+
+  // MIDI 이벤트 → 건반 시각 반응 + 소리
+  const handleMidiEvent = useCallback(async (event: NoteEvent) => {
+    if (event.type === 'on') {
+      await audioEngine.init()
+      audioEngine.noteOn(event.noteNumber, event.velocity)
+      pressNote(event)
+    } else {
+      audioEngine.noteOff(event.noteNumber)
+      releaseNote(event.noteNumber)
+    }
+  }, [pressNote, releaseNote])
+
   useEffect(() => {
+    // 설정 진입 시 건반 상태 초기화
+    usePracticeStore.getState().resetSession()
+
     midiEngine.init()
       .then((inputs) => setMidiInputs(inputs))
-      .catch(() => setMidiInputs([]))
-  }, [])
+      .catch(() => {})
+
+    midiEngine.on(handleMidiEvent)
+
+    const handleConnection = (inputs: MIDIInput[]) => {
+      setMidiInputs([...inputs])
+    }
+    midiEngine.onConnection(handleConnection)
+
+    return () => {
+      midiEngine.off(handleMidiEvent)
+      midiEngine.offConnection(handleConnection)
+      // 나갈 때 건반 상태 정리
+      usePracticeStore.getState().resetSession()
+    }
+  }, [handleMidiEvent])
 
   const handleSave = async () => {
     updateUser({ nickname, settings })
@@ -75,27 +110,24 @@ export function SettingsScreen() {
             ))}
           </div>
 
-          {settings.inputMode === 'midi' && (
-            <label className="settings-label">
-              MIDI 기기
-              <select
-                className="settings-select"
-                value={settings.midiDeviceId ?? ''}
-                onChange={(e) => update('midiDeviceId', e.target.value)}
-              >
-                <option value="">기기 선택...</option>
-                {midiInputs.map((input) => (
-                  <option key={input.id} value={input.id}>{input.name}</option>
-                ))}
-              </select>
-              {midiInputs.length === 0 && (
-                <p className="settings-hint">MIDI 기기가 감지되지 않았습니다. Chrome/Edge에서 실행하고 기기를 연결하세요.</p>
-              )}
-            </label>
-          )}
+          {/* 감지된 MIDI 기기 목록 */}
+          <div className="midi-device-list">
+            <p className="midi-device-list__label">감지된 MIDI 기기</p>
+            {midiInputs.length === 0 ? (
+              <p className="settings-hint">MIDI 기기가 감지되지 않았습니다. Chrome/Edge에서 실행하고 기기를 연결하세요.</p>
+            ) : (
+              midiInputs.map((input) => (
+                <div key={input.id} className="midi-device-item">
+                  <span className="midi-device-dot" />
+                  <span className="midi-device-name">{input.name ?? 'Unknown'}</span>
+                  <span className="midi-device-state">연결됨</span>
+                </div>
+              ))
+            )}
+          </div>
 
           {settings.inputMode === 'mic' && (
-            <label className="settings-label">
+            <label className="settings-label" style={{ marginTop: '12px' }}>
               마이크 감도 ({Math.round(settings.micSensitivity * 100)}%)
               <input
                 type="range"
@@ -159,6 +191,17 @@ export function SettingsScreen() {
           <div className="settings-info">
             <p>Piano Learning v0.1.0</p>
             <p>Web MIDI API: {typeof navigator.requestMIDIAccess === 'function' ? '지원됨' : '미지원 (Chrome/Edge 권장)'}</p>
+          </div>
+        </section>
+
+        {/* 건반 테스트 */}
+        <section className="settings-section settings-section--keyboard">
+          <h2>건반 테스트</h2>
+          <p className="settings-hint" style={{ marginBottom: '10px' }}>
+            MIDI 건반이나 화면 건반을 눌러 연결 상태를 확인하세요
+          </p>
+          <div className="settings-keyboard-wrap">
+            <PianoKeyboard />
           </div>
         </section>
       </div>

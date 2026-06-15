@@ -136,6 +136,68 @@
   color: #94a3b8;
 }
 
+/* MIDI 기기 목록 */
+.midi-device-list {
+  margin-top: 8px;
+}
+
+.midi-device-list__label {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.midi-device-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #12122a;
+  border: 1px solid #2d2d4e;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.midi-device-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 6px #4ade80;
+  flex-shrink: 0;
+  animation: midi-pulse 1.8s infinite;
+}
+
+@keyframes midi-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.midi-device-name {
+  flex: 1;
+  font-size: 0.85rem;
+  color: #e2e8f0;
+}
+
+.midi-device-state {
+  font-size: 0.75rem;
+  color: #4ade80;
+}
+
+/* 건반 테스트 섹션 */
+.settings-section--keyboard {
+  max-width: 100%;
+}
+
+.settings-keyboard-wrap {
+  height: 100px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid #2d2d4e;
+}
+
 .btn { padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.875rem; background: #2d2d4e; color: #e2e8f0; }
 .btn--primary { background: #3b82f6; color: white; }
 .btn-icon { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; font-size: 0.9rem; }
