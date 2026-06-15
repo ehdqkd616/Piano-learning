@@ -70,12 +70,25 @@
 }
 
 .freeplay-device-chip {
-  background: #1e2d1e;
-  border: 1px solid #2d4e2d;
-  color: #4ade80;
-  padding: 3px 10px;
-  border-radius: 12px;
+  padding: 4px 12px;
+  border-radius: 14px;
   font-size: 0.75rem;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.freeplay-device-chip--on {
+  background: #1e2d1e;
+  border-color: #4ade80;
+  color: #4ade80;
+}
+
+.freeplay-device-chip--off {
+  background: #1a1a2e;
+  border-color: #3d3d5e;
+  color: #64748b;
 }
 
 .freeplay-main {

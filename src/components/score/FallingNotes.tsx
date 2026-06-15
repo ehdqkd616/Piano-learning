@@ -4,11 +4,41 @@ import { usePracticeStore } from '@/store/usePracticeStore'
 import './FallingNotes.css'
 
 const FIRST_NOTE = 21
-const TOTAL_KEYS = 88
+const LAST_NOTE = 108
 const FALL_DURATION_MS = 2000
 const LOOK_AHEAD_MS = 2600
 const NOTE_COLORS = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#60a5fa', '#a78bfa', '#f472b6']
 const getNoteColor = (n: number) => NOTE_COLORS[n % NOTE_COLORS.length]
+
+// 피아노 흰건반 기준 X 위치 계산 (PianoKeyboard 레이아웃과 일치)
+const BLACK_IN_OCTAVE = new Set([1, 3, 6, 8, 10])
+function isBlackKey(n: number): boolean { return BLACK_IN_OCTAVE.has(n % 12) }
+
+// 각 노트 앞에 오는 흰건반 수 사전 계산
+const WHITE_BEFORE: number[] = []
+let _wc = 0
+for (let n = FIRST_NOTE; n <= LAST_NOTE; n++) {
+  WHITE_BEFORE.push(_wc)
+  if (!isBlackKey(n)) _wc++
+}
+const TOTAL_WHITE_KEYS = _wc  // 52
+
+/** 노트 번호 → 캔버스 너비 기준 X 비율 (0~1) */
+function noteXFrac(noteNumber: number): number {
+  const idx = noteNumber - FIRST_NOTE
+  if (idx < 0 || idx >= WHITE_BEFORE.length) return 0
+  const wkb = WHITE_BEFORE[idx]
+  return isBlackKey(noteNumber)
+    ? wkb / TOTAL_WHITE_KEYS                  // 검은건반: 흰건반 경계선 위치
+    : (wkb + 0.5) / TOTAL_WHITE_KEYS          // 흰건반: 키 중앙
+}
+
+/** 노트 너비 비율 */
+function noteWFrac(noteNumber: number): number {
+  return isBlackKey(noteNumber)
+    ? 0.55 / TOTAL_WHITE_KEYS   // 검은건반 ~62% 너비
+    : 0.88 / TOTAL_WHITE_KEYS   // 흰건반 너비
+}
 
 interface FallingNotesProps { notes: ScoreNote[] }
 
@@ -16,7 +46,6 @@ export function FallingNotes({ notes }: FallingNotesProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef = useRef<number>(0)
 
-  // 스토어 값들은 ref로 → RAF에서 항상 최신값 읽음
   const timeRef = useRef(0)
   const activeNotesRef = useRef<Set<number>>(new Set())
   const noteResultsRef = useRef<NoteResult[]>([])
@@ -25,7 +54,6 @@ export function FallingNotes({ notes }: FallingNotesProps) {
   const notesRef = useRef(notes)
   notesRef.current = notes
 
-  // 스토어 구독
   useEffect(() => {
     return usePracticeStore.subscribe((state) => {
       timeRef.current = state.currentTimeMs
@@ -36,11 +64,9 @@ export function FallingNotes({ notes }: FallingNotesProps) {
     })
   }, [])
 
-  // 단일 RAF 루프 (notes 변경 시만 재시작)
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    // ctx는 getContext가 매번 같은 인스턴스를 반환함
     const dpr = window.devicePixelRatio || 1
 
     const resize = () => {
@@ -58,7 +84,6 @@ export function FallingNotes({ notes }: FallingNotesProps) {
     ro.observe(canvas)
 
     function draw() {
-      // draw 내에서 직접 null 체크 → TypeScript가 narrowing 유지
       const el = canvasRef.current
       const ctx = el?.getContext('2d')
       if (!el || !ctx) { animRef.current = requestAnimationFrame(draw); return }
@@ -71,9 +96,9 @@ export function FallingNotes({ notes }: FallingNotesProps) {
       ctx.fillStyle = '#0f0f1a'
       ctx.fillRect(0, 0, cssW, cssH)
 
-      // 건반 안내선
-      for (let i = 0; i < TOTAL_KEYS; i++) {
-        const gx = (i / (TOTAL_KEYS - 1)) * cssW
+      // 흰건반 안내선 (52개)
+      for (let i = 0; i < TOTAL_WHITE_KEYS; i++) {
+        const gx = ((i + 0.5) / TOTAL_WHITE_KEYS) * cssW
         ctx.strokeStyle = 'rgba(255,255,255,0.04)'
         ctx.lineWidth = 1
         ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, cssH); ctx.stroke()
@@ -86,7 +111,6 @@ export function FallingNotes({ notes }: FallingNotesProps) {
       ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(cssW, hitY); ctx.stroke()
 
       const now = timeRef.current
-      const keyW = cssW / TOTAL_KEYS
       const currentNotes = notesRef.current
       const results = noteResultsRef.current
       const activeNotes = activeNotesRef.current
@@ -101,8 +125,8 @@ export function FallingNotes({ notes }: FallingNotesProps) {
         const progress = 1 - timeToHit / FALL_DURATION_MS
         const y = progress * hitY
 
-        const nx = ((sn.noteNumber - FIRST_NOTE) / (TOTAL_KEYS - 1)) * cssW
-        const nw = Math.max(keyW * 0.8, 6)
+        const nx = noteXFrac(sn.noteNumber) * cssW
+        const nw = Math.max(noteWFrac(sn.noteNumber) * cssW, 5)
         const nh = Math.max((sn.durationMs / FALL_DURATION_MS) * hitY, 6)
 
         const isTarget = sn.index === currentIdx
@@ -136,11 +160,12 @@ export function FallingNotes({ notes }: FallingNotesProps) {
 
       // 눌린 건반 히트라인 표시
       activeNotes.forEach((note) => {
-        const ax = ((note - FIRST_NOTE) / (TOTAL_KEYS - 1)) * cssW
+        const ax = noteXFrac(note) * cssW
+        const aw = Math.max(noteWFrac(note) * cssW, 12)
         ctx.fillStyle = 'rgba(96,184,255,0.6)'
         ctx.shadowColor = '#60b8ff'
         ctx.shadowBlur = 8
-        ctx.fillRect(ax - 10, hitY - 8, 20, 16)
+        ctx.fillRect(ax - aw / 2, hitY - 8, aw, 16)
         ctx.shadowBlur = 0
       })
 

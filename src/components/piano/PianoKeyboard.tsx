@@ -8,7 +8,7 @@ const LAST_NOTE = 108
 const BLACK_KEY_PATTERN = [1, 3, 6, 8, 10]
 
 function isBlack(noteNumber: number): boolean {
-  return BLACK_KEY_PATTERN.includes((noteNumber - 12) % 12)
+  return BLACK_KEY_PATTERN.includes(noteNumber % 12)
 }
 
 function getNoteName(noteNumber: number): string {
@@ -53,15 +53,24 @@ function PianoKey({ noteNumber, isActive, isHighlight, onPress, onRelease }: Key
 }
 
 export interface PianoKeyboardProps {
-  /** 추가 판정 콜백 — 내부 visual/audio 처리 후 호출됨 */
+  /** 표시할 첫 번째 MIDI 노트 번호 (기본: 21 = A0) */
+  firstNote?: number
+  /** 표시할 마지막 MIDI 노트 번호 (기본: 108 = C8) */
+  lastNote?: number
   onNoteOn?: (noteNumber: number, velocity: number) => void
   onNoteOff?: (noteNumber: number) => void
-  /** 외부에서 activeNotes를 직접 주입할 때 사용 (FreePlay 등) */
   activeNotes?: Set<number>
   highlightNotes?: Set<number>
 }
 
-export function PianoKeyboard({ onNoteOn, onNoteOff, activeNotes: activeProp, highlightNotes: highlightProp }: PianoKeyboardProps) {
+export function PianoKeyboard({
+  firstNote = FIRST_NOTE,
+  lastNote = LAST_NOTE,
+  onNoteOn,
+  onNoteOff,
+  activeNotes: activeProp,
+  highlightNotes: highlightProp,
+}: PianoKeyboardProps) {
   const storeActive = usePracticeStore((s) => s.activeNotes)
   const storeHighlight = usePracticeStore((s) => s.highlightNotes)
   const pressNote = usePracticeStore((s) => s.pressNote)
@@ -84,7 +93,10 @@ export function PianoKeyboard({ onNoteOn, onNoteOff, activeNotes: activeProp, hi
     onNoteOff?.(note)
   }, [releaseNote, onNoteOff])
 
-  const notes = Array.from({ length: LAST_NOTE - FIRST_NOTE + 1 }, (_, i) => i + FIRST_NOTE)
+  const notes = Array.from(
+    { length: lastNote - firstNote + 1 },
+    (_, i) => i + firstNote,
+  )
 
   return (
     <div className="piano-keyboard" role="group" aria-label="피아노 건반">

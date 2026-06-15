@@ -16,6 +16,7 @@ function noteNumberToName(n: number): string {
 export function FreePlayScreen() {
   const navigate = useNavigate()
   const [midiDevices, setMidiDevices] = useState<MIDIInput[]>([])
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set())
   const [pressedNames, setPressedNames] = useState<string[]>([])
 
   const pressNote = usePracticeStore((s) => s.pressNote)
@@ -37,7 +38,11 @@ export function FreePlayScreen() {
     usePracticeStore.getState().resetSession()
 
     midiEngine.init()
-      .then((inputs) => setMidiDevices(inputs))
+      .then((inputs) => {
+        setMidiDevices(inputs)
+        const cur = midiEngine.getSelectedIds()
+        setSelectedDeviceIds(cur !== null ? new Set(cur) : new Set(inputs.map((i) => i.id)))
+      })
       .catch(() => {})
 
     midiEngine.on(handleMidiEvent)
@@ -57,7 +62,18 @@ export function FreePlayScreen() {
     setPressedNames(Array.from(activeNotes).sort((a, b) => a - b).map(noteNumberToName))
   }, [activeNotes])
 
-  const connectedCount = midiDevices.length
+  const toggleDevice = (id: string) => {
+    setSelectedDeviceIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
+      midiEngine.setSelectedInputs(next)
+      return next
+    })
+  }
+
+  const connectedCount = Array.from(selectedDeviceIds).filter(
+    (id) => midiDevices.some((d) => d.id === id),
+  ).length
 
   return (
     <div className="freeplay-screen">
@@ -66,18 +82,26 @@ export function FreePlayScreen() {
         <h1>자유 연주</h1>
         <div className={`freeplay-midi-status ${connectedCount > 0 ? 'freeplay-midi-status--connected' : ''}`}>
           <span className="freeplay-midi-dot" />
-          <span>{connectedCount > 0 ? `${connectedCount}개 기기 연결됨` : 'MIDI 연결 없음'}</span>
+          <span>{connectedCount > 0 ? `${connectedCount}개 기기 활성` : 'MIDI 연결 없음'}</span>
         </div>
       </header>
 
-      {/* MIDI 기기 목록 */}
+      {/* MIDI 기기 선택 */}
       {midiDevices.length > 0 && (
         <div className="freeplay-device-list">
-          {midiDevices.map((d) => (
-            <span key={d.id} className="freeplay-device-chip">
-              🎹 {d.name ?? 'Unknown'}
-            </span>
-          ))}
+          {midiDevices.map((d) => {
+            const isOn = selectedDeviceIds.has(d.id)
+            return (
+              <button
+                key={d.id}
+                className={`freeplay-device-chip ${isOn ? 'freeplay-device-chip--on' : 'freeplay-device-chip--off'}`}
+                onClick={() => toggleDevice(d.id)}
+                title={isOn ? '클릭하여 해제' : '클릭하여 연결'}
+              >
+                🎹 {d.name ?? 'Unknown'}
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -86,7 +110,7 @@ export function FreePlayScreen() {
           {pressedNames.length > 0
             ? <span className="freeplay-note-names">{pressedNames.join('  ·  ')}</span>
             : <span className="freeplay-note-hint">
-                {connectedCount > 0 ? 'MIDI 건반 또는 화면 건반을 눌러보세요' : '화면 건반을 눌러보세요'}
+                {midiDevices.length > 0 ? 'MIDI 건반 또는 화면 건반을 눌러보세요' : '화면 건반을 눌러보세요'}
               </span>
           }
         </div>

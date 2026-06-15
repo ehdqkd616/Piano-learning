@@ -9,6 +9,10 @@ import { db } from '@/db'
 import type { UserSettings, NoteEvent } from '@/types'
 import './SettingsScreen.css'
 
+// 건반 테스트 음역: A3(57) ~ C6(84)
+const KB_FIRST = 57
+const KB_LAST = 84
+
 export function SettingsScreen() {
   const navigate = useNavigate()
   const { user, updateUser } = useAppStore()
@@ -19,13 +23,13 @@ export function SettingsScreen() {
     },
   )
   const [midiInputs, setMidiInputs] = useState<MIDIInput[]>([])
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set())
   const [nickname, setNickname] = useState(user?.nickname ?? '피아니스트')
   const [saved, setSaved] = useState(false)
 
   const pressNote = usePracticeStore((s) => s.pressNote)
   const releaseNote = usePracticeStore((s) => s.releaseNote)
 
-  // MIDI 이벤트 → 건반 시각 반응 + 소리
   const handleMidiEvent = useCallback(async (event: NoteEvent) => {
     if (event.type === 'on') {
       await audioEngine.init()
@@ -38,11 +42,15 @@ export function SettingsScreen() {
   }, [pressNote, releaseNote])
 
   useEffect(() => {
-    // 설정 진입 시 건반 상태 초기화
     usePracticeStore.getState().resetSession()
 
     midiEngine.init()
-      .then((inputs) => setMidiInputs(inputs))
+      .then((inputs) => {
+        setMidiInputs(inputs)
+        // 현재 midiEngine 선택 상태 읽기, 없으면 전체 선택
+        const cur = midiEngine.getSelectedIds()
+        setSelectedDeviceIds(cur !== null ? new Set(cur) : new Set(inputs.map((i) => i.id)))
+      })
       .catch(() => {})
 
     midiEngine.on(handleMidiEvent)
@@ -55,10 +63,18 @@ export function SettingsScreen() {
     return () => {
       midiEngine.off(handleMidiEvent)
       midiEngine.offConnection(handleConnection)
-      // 나갈 때 건반 상태 정리
       usePracticeStore.getState().resetSession()
     }
   }, [handleMidiEvent])
+
+  const toggleDevice = (id: string) => {
+    setSelectedDeviceIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
+      midiEngine.setSelectedInputs(next)
+      return next
+    })
+  }
 
   const handleSave = async () => {
     updateUser({ nickname, settings })
@@ -110,19 +126,27 @@ export function SettingsScreen() {
             ))}
           </div>
 
-          {/* 감지된 MIDI 기기 목록 */}
+          {/* MIDI 기기 선택 */}
           <div className="midi-device-list">
-            <p className="midi-device-list__label">감지된 MIDI 기기</p>
+            <p className="midi-device-list__label">MIDI 기기 선택</p>
             {midiInputs.length === 0 ? (
               <p className="settings-hint">MIDI 기기가 감지되지 않았습니다. Chrome/Edge에서 실행하고 기기를 연결하세요.</p>
             ) : (
-              midiInputs.map((input) => (
-                <div key={input.id} className="midi-device-item">
-                  <span className="midi-device-dot" />
-                  <span className="midi-device-name">{input.name ?? 'Unknown'}</span>
-                  <span className="midi-device-state">연결됨</span>
-                </div>
-              ))
+              midiInputs.map((input) => {
+                const isOn = selectedDeviceIds.has(input.id)
+                return (
+                  <div key={input.id} className="midi-device-item">
+                    <span className={`midi-device-dot ${isOn ? '' : 'midi-device-dot--off'}`} />
+                    <span className="midi-device-name">{input.name ?? 'Unknown'}</span>
+                    <button
+                      className={`midi-device-toggle ${isOn ? 'midi-device-toggle--on' : ''}`}
+                      onClick={() => toggleDevice(input.id)}
+                    >
+                      {isOn ? '연결됨' : '해제됨'}
+                    </button>
+                  </div>
+                )
+              })
             )}
           </div>
 
@@ -194,14 +218,14 @@ export function SettingsScreen() {
           </div>
         </section>
 
-        {/* 건반 테스트 */}
+        {/* 건반 테스트 — A3(가온도 아래 라)부터 C6까지 */}
         <section className="settings-section settings-section--keyboard">
           <h2>건반 테스트</h2>
           <p className="settings-hint" style={{ marginBottom: '10px' }}>
-            MIDI 건반이나 화면 건반을 눌러 연결 상태를 확인하세요
+            MIDI 건반이나 화면 건반을 눌러 연결 상태를 확인하세요 (라~C6)
           </p>
           <div className="settings-keyboard-wrap">
-            <PianoKeyboard />
+            <PianoKeyboard firstNote={KB_FIRST} lastNote={KB_LAST} />
           </div>
         </section>
       </div>

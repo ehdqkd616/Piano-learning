@@ -7,6 +7,8 @@ class MidiEngine {
   private access: MIDIAccess | null = null
   private listeners: NoteCallback[] = []
   private connectionListeners: ConnectionCallback[] = []
+  // null = 모든 기기 연결 / Set = 선택한 기기만 연결
+  private selectedIds: Set<string> | null = null
 
   async init(): Promise<MIDIInput[]> {
     if (!navigator.requestMIDIAccess) {
@@ -15,12 +17,11 @@ class MidiEngine {
     if (this.access) return this.getInputs()
     this.access = await navigator.requestMIDIAccess({ sysex: false })
     this.access.onstatechange = () => {
-      this.connectAll()
+      this.applyConnections()
       const inputs = this.getInputs()
       this.connectionListeners.forEach((cb) => cb(inputs))
     }
-    // 초기화 시 모든 기기 연결
-    this.connectAll()
+    this.applyConnections()
     return this.getInputs()
   }
 
@@ -29,24 +30,37 @@ class MidiEngine {
     return Array.from(this.access.inputs.values())
   }
 
-  /** 현재 연결 가능한 모든 MIDI 입력에 메시지 핸들러 등록 */
-  connectAll(): void {
+  /** 현재 selectedIds에 따라 메시지 핸들러 적용 */
+  private applyConnections(): void {
+    const ids = this.selectedIds
     this.getInputs().forEach((input) => {
-      input.onmidimessage = (event: MIDIMessageEvent) => this.handleMessage(event)
+      if (ids === null || ids.has(input.id)) {
+        input.onmidimessage = (event: MIDIMessageEvent) => this.handleMessage(event)
+      } else {
+        input.onmidimessage = null
+      }
     })
   }
 
-  /** 단일 기기 연결 (설정 화면 선택용) */
-  connect(input: MIDIInput) {
-    // 기존 전체 연결 해제 후 선택 기기만 연결
-    this.disconnectAll()
-    input.onmidimessage = (event: MIDIMessageEvent) => this.handleMessage(event)
+  /** 선택된 기기 ID 목록으로 연결 업데이트 */
+  setSelectedInputs(ids: Set<string>): void {
+    this.selectedIds = new Set(ids)
+    this.applyConnections()
+  }
+
+  /** 현재 선택 상태 반환 (null = 전체 선택) */
+  getSelectedIds(): Set<string> | null {
+    return this.selectedIds
+  }
+
+  /** 전체 연결 (선택 초기화) */
+  connectAll(): void {
+    this.selectedIds = null
+    this.applyConnections()
   }
 
   disconnectAll(): void {
-    this.getInputs().forEach((input) => {
-      input.onmidimessage = null
-    })
+    this.getInputs().forEach((input) => { input.onmidimessage = null })
   }
 
   disconnect() { this.disconnectAll() }
