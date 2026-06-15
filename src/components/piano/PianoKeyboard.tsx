@@ -1,61 +1,34 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { usePracticeStore } from '@/store/usePracticeStore'
 import { audioEngine } from '@/engines/audio/audioEngine'
 import './PianoKeyboard.css'
 
 const FIRST_NOTE = 21
 const LAST_NOTE = 108
-const BLACK_KEY_PATTERN = [1, 3, 6, 8, 10]
+const BLACK_IN_OCTAVE = new Set([1, 3, 6, 8, 10])
+// 검은건반 너비 = 흰건반 1칸의 65%
+const BLACK_W_RATIO = 0.65
 
 function isBlack(noteNumber: number): boolean {
-  return BLACK_KEY_PATTERN.includes(noteNumber % 12)
+  return BLACK_IN_OCTAVE.has(noteNumber % 12)
 }
 
-function getNoteName(noteNumber: number): string {
-  const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-  const octave = Math.floor(noteNumber / 12) - 1
-  return names[noteNumber % 12] + octave
-}
-
-interface KeyProps {
-  noteNumber: number
-  isActive: boolean
-  isHighlight: boolean
-  onPress: (note: number) => void
-  onRelease: (note: number) => void
-}
-
-function PianoKey({ noteNumber, isActive, isHighlight, onPress, onRelease }: KeyProps) {
-  const black = isBlack(noteNumber)
-
-  const handleDown = useCallback(() => onPress(noteNumber), [noteNumber, onPress])
-  const handleUp = useCallback(() => onRelease(noteNumber), [noteNumber, onRelease])
-
-  const className = [
-    'piano-key',
-    black ? 'piano-key--black' : 'piano-key--white',
-    isActive ? 'piano-key--active' : '',
-    isHighlight ? 'piano-key--highlight' : '',
-  ].filter(Boolean).join(' ')
-
-  return (
-    <div
-      className={className}
-      data-note={noteNumber}
-      data-name={getNoteName(noteNumber)}
-      onMouseDown={handleDown}
-      onMouseUp={handleUp}
-      onMouseLeave={handleUp}
-      onTouchStart={(e) => { e.preventDefault(); handleDown() }}
-      onTouchEnd={(e) => { e.preventDefault(); handleUp() }}
-    />
-  )
+/** 지정 범위 내 흰건반/검은건반 분리 및 각 노트 앞 흰건반 수 계산 */
+function buildLayout(firstNote: number, lastNote: number) {
+  const whites: number[] = []
+  const blacks: number[] = []
+  const wkb: number[] = [] // wkb[i] = 범위 안에서 note (firstNote+i) 앞의 흰건반 수
+  let wc = 0
+  for (let n = firstNote; n <= lastNote; n++) {
+    wkb.push(wc)
+    if (isBlack(n)) { blacks.push(n) }
+    else { whites.push(n); wc++ }
+  }
+  return { whites, blacks, wkb, totalWhite: wc }
 }
 
 export interface PianoKeyboardProps {
-  /** 표시할 첫 번째 MIDI 노트 번호 (기본: 21 = A0) */
   firstNote?: number
-  /** 표시할 마지막 MIDI 노트 번호 (기본: 108 = C8) */
   lastNote?: number
   onNoteOn?: (noteNumber: number, velocity: number) => void
   onNoteOff?: (noteNumber: number) => void
@@ -79,6 +52,11 @@ export function PianoKeyboard({
   const activeNotes = activeProp ?? storeActive
   const highlightNotes = highlightProp ?? storeHighlight
 
+  const { whites, blacks, wkb, totalWhite } = useMemo(
+    () => buildLayout(firstNote, lastNote),
+    [firstNote, lastNote],
+  )
+
   const handlePress = useCallback(async (note: number) => {
     const velocity = 80
     await audioEngine.init()
@@ -93,23 +71,53 @@ export function PianoKeyboard({
     onNoteOff?.(note)
   }, [releaseNote, onNoteOff])
 
-  const notes = Array.from(
-    { length: lastNote - firstNote + 1 },
-    (_, i) => i + firstNote,
-  )
+  const keyClass = (note: number, base: string) =>
+    [
+      base,
+      activeNotes.has(note) ? 'piano-key--active' : '',
+      highlightNotes.has(note) ? 'piano-key--highlight' : '',
+    ].filter(Boolean).join(' ')
 
   return (
     <div className="piano-keyboard" role="group" aria-label="피아노 건반">
-      {notes.map((note) => (
-        <PianoKey
+      {/* 흰건반: flex:1로 컨테이너를 균등 분할 → FallingNotes 비율과 일치 */}
+      {whites.map((note) => (
+        <div
           key={note}
-          noteNumber={note}
-          isActive={activeNotes.has(note)}
-          isHighlight={highlightNotes.has(note)}
-          onPress={handlePress}
-          onRelease={handleRelease}
+          className={keyClass(note, 'piano-key piano-key--white')}
+          data-note={note}
+          onMouseDown={() => handlePress(note)}
+          onMouseUp={() => handleRelease(note)}
+          onMouseLeave={() => handleRelease(note)}
+          onTouchStart={(e) => { e.preventDefault(); handlePress(note) }}
+          onTouchEnd={(e) => { e.preventDefault(); handleRelease(note) }}
         />
       ))}
+
+      {/* 검은건반: 절대 위치로 흰건반 경계선 위에 오버레이 */}
+      <div className="piano-keyboard__blacks">
+        {blacks.map((note) => {
+          const wkbIdx = wkb[note - firstNote]
+          const centerPct = (wkbIdx / totalWhite) * 100
+          const halfW = (BLACK_W_RATIO / totalWhite) * 50
+          return (
+            <div
+              key={note}
+              className={keyClass(note, 'piano-key piano-key--black')}
+              style={{
+                left: `${centerPct - halfW}%`,
+                width: `${(BLACK_W_RATIO / totalWhite) * 100}%`,
+              }}
+              data-note={note}
+              onMouseDown={() => handlePress(note)}
+              onMouseUp={() => handleRelease(note)}
+              onMouseLeave={() => handleRelease(note)}
+              onTouchStart={(e) => { e.preventDefault(); handlePress(note) }}
+              onTouchEnd={(e) => { e.preventDefault(); handleRelease(note) }}
+            />
+          )
+        })}
+      </div>
     </div>
   )
 }

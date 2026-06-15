@@ -1,33 +1,32 @@
 .piano-keyboard {
   position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   height: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
   background: #111;
-  padding: 4px 8px;
   user-select: none;
+  overflow: hidden; /* 스크롤 없음 — 비례 레이아웃으로 항상 컨테이너에 맞춤 */
 }
 
 .piano-key {
-  position: relative;
   cursor: pointer;
-  border-radius: 0 0 4px 4px;
   transition: background 60ms;
-  flex-shrink: 0;
 }
 
-/* 흰 건반 */
+/* 흰건반: flex:1 → 컨테이너를 균등 분할 */
 .piano-key--white {
-  width: 28px;
-  height: 100%;
-  min-height: 100px;
+  flex: 1;
+  min-width: 0;
   background: #f5f5f0;
-  border: 1px solid #999;
-  border-top: none;
+  border-right: 1px solid #999;
+  border-bottom: 3px solid #bbb;
+  border-radius: 0 0 4px 4px;
+  box-sizing: border-box;
   z-index: 1;
-  margin-right: 1px;
+}
+
+.piano-key--white:last-of-type {
+  border-right: none;
 }
 
 .piano-key--white:hover {
@@ -36,28 +35,39 @@
 
 .piano-key--white.piano-key--active {
   background: #60b8ff;
+  border-color: #3a8fd0;
 }
 
 .piano-key--white.piano-key--highlight {
   background: #a8f5a8;
+  border-color: #5cb85c;
 }
 
 .piano-key--white.piano-key--active.piano-key--highlight {
   background: #60b8ff;
 }
 
-/* 검은 건반 */
-.piano-key--black {
-  width: 18px;
+/* 검은건반 오버레이 컨테이너 */
+.piano-keyboard__blacks {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 62%;
-  min-height: 62px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* 검은건반: 절대 위치, 너비는 JS에서 % 계산 */
+.piano-key--black {
+  position: absolute;
+  height: 100%;
   background: #1a1a1a;
   border: 1px solid #000;
   border-top: none;
-  z-index: 2;
-  margin-left: -9px;
-  margin-right: -9px;
   border-radius: 0 0 3px 3px;
+  pointer-events: auto;
+  box-sizing: border-box;
 }
 
 .piano-key--black:hover {

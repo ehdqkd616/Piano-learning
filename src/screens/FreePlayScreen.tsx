@@ -16,7 +16,10 @@ function noteNumberToName(n: number): string {
 export function FreePlayScreen() {
   const navigate = useNavigate()
   const [midiDevices, setMidiDevices] = useState<MIDIInput[]>([])
-  const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set())
+  // null = 전체 연결(기본). 렌더 시작 즉시 midiEngine 상태를 읽어 초기화
+  const [selectedIds, setSelectedIds] = useState<Set<string> | null>(
+    () => midiEngine.getSelectedIds(),
+  )
   const [pressedNames, setPressedNames] = useState<string[]>([])
 
   const pressNote = usePracticeStore((s) => s.pressNote)
@@ -40,16 +43,15 @@ export function FreePlayScreen() {
     midiEngine.init()
       .then((inputs) => {
         setMidiDevices(inputs)
+        // 다른 화면에서 선택을 바꿨으면 반영
         const cur = midiEngine.getSelectedIds()
-        setSelectedDeviceIds(cur !== null ? new Set(cur) : new Set(inputs.map((i) => i.id)))
+        if (cur !== null) setSelectedIds(new Set(cur))
+        // null이면 전체 연결 — 그대로 유지
       })
       .catch(() => {})
 
     midiEngine.on(handleMidiEvent)
-
-    const handleConnection = (inputs: MIDIInput[]) => {
-      setMidiDevices([...inputs])
-    }
+    const handleConnection = (inputs: MIDIInput[]) => setMidiDevices([...inputs])
     midiEngine.onConnection(handleConnection)
 
     return () => {
@@ -62,18 +64,22 @@ export function FreePlayScreen() {
     setPressedNames(Array.from(activeNotes).sort((a, b) => a - b).map(noteNumberToName))
   }, [activeNotes])
 
+  // null = 전체 선택 / Set = 특정 선택
+  const isDeviceOn = (id: string) => selectedIds === null || selectedIds.has(id)
+
   const toggleDevice = (id: string) => {
-    setSelectedDeviceIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) { next.delete(id) } else { next.add(id) }
-      midiEngine.setSelectedInputs(next)
-      return next
+    setSelectedIds((prev) => {
+      // prev가 null이면 전체에서 시작
+      const base = prev !== null ? new Set(prev) : new Set(midiDevices.map((d) => d.id))
+      if (base.has(id)) { base.delete(id) } else { base.add(id) }
+      midiEngine.setSelectedInputs(base)
+      return base
     })
   }
 
-  const connectedCount = Array.from(selectedDeviceIds).filter(
-    (id) => midiDevices.some((d) => d.id === id),
-  ).length
+  const connectedCount = selectedIds === null
+    ? midiDevices.length
+    : Array.from(selectedIds).filter((id) => midiDevices.some((d) => d.id === id)).length
 
   return (
     <div className="freeplay-screen">
@@ -86,22 +92,19 @@ export function FreePlayScreen() {
         </div>
       </header>
 
-      {/* MIDI 기기 선택 */}
+      {/* MIDI 기기 선택 토글 */}
       {midiDevices.length > 0 && (
         <div className="freeplay-device-list">
-          {midiDevices.map((d) => {
-            const isOn = selectedDeviceIds.has(d.id)
-            return (
-              <button
-                key={d.id}
-                className={`freeplay-device-chip ${isOn ? 'freeplay-device-chip--on' : 'freeplay-device-chip--off'}`}
-                onClick={() => toggleDevice(d.id)}
-                title={isOn ? '클릭하여 해제' : '클릭하여 연결'}
-              >
-                🎹 {d.name ?? 'Unknown'}
-              </button>
-            )
-          })}
+          {midiDevices.map((d) => (
+            <button
+              key={d.id}
+              className={`freeplay-device-chip ${isDeviceOn(d.id) ? 'freeplay-device-chip--on' : 'freeplay-device-chip--off'}`}
+              onClick={() => toggleDevice(d.id)}
+              title={isDeviceOn(d.id) ? '클릭하여 해제' : '클릭하여 연결'}
+            >
+              🎹 {d.name ?? 'Unknown'}
+            </button>
+          ))}
         </div>
       )}
 

@@ -23,7 +23,10 @@ export function SettingsScreen() {
     },
   )
   const [midiInputs, setMidiInputs] = useState<MIDIInput[]>([])
-  const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set())
+  // null = 전체 연결(기본). 렌더 즉시 midiEngine 상태를 읽어 초기화
+  const [selectedIds, setSelectedIds] = useState<Set<string> | null>(
+    () => midiEngine.getSelectedIds(),
+  )
   const [nickname, setNickname] = useState(user?.nickname ?? '피아니스트')
   const [saved, setSaved] = useState(false)
 
@@ -47,9 +50,8 @@ export function SettingsScreen() {
     midiEngine.init()
       .then((inputs) => {
         setMidiInputs(inputs)
-        // 현재 midiEngine 선택 상태 읽기, 없으면 전체 선택
         const cur = midiEngine.getSelectedIds()
-        setSelectedDeviceIds(cur !== null ? new Set(cur) : new Set(inputs.map((i) => i.id)))
+        if (cur !== null) setSelectedIds(new Set(cur))
       })
       .catch(() => {})
 
@@ -67,12 +69,14 @@ export function SettingsScreen() {
     }
   }, [handleMidiEvent])
 
+  const isDeviceOn = (id: string) => selectedIds === null || selectedIds.has(id)
+
   const toggleDevice = (id: string) => {
-    setSelectedDeviceIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) { next.delete(id) } else { next.add(id) }
-      midiEngine.setSelectedInputs(next)
-      return next
+    setSelectedIds((prev) => {
+      const base = prev !== null ? new Set(prev) : new Set(midiInputs.map((i) => i.id))
+      if (base.has(id)) { base.delete(id) } else { base.add(id) }
+      midiEngine.setSelectedInputs(base)
+      return base
     })
   }
 
@@ -133,16 +137,16 @@ export function SettingsScreen() {
               <p className="settings-hint">MIDI 기기가 감지되지 않았습니다. Chrome/Edge에서 실행하고 기기를 연결하세요.</p>
             ) : (
               midiInputs.map((input) => {
-                const isOn = selectedDeviceIds.has(input.id)
+                const on = isDeviceOn(input.id)
                 return (
                   <div key={input.id} className="midi-device-item">
-                    <span className={`midi-device-dot ${isOn ? '' : 'midi-device-dot--off'}`} />
+                    <span className={`midi-device-dot ${on ? '' : 'midi-device-dot--off'}`} />
                     <span className="midi-device-name">{input.name ?? 'Unknown'}</span>
                     <button
-                      className={`midi-device-toggle ${isOn ? 'midi-device-toggle--on' : ''}`}
+                      className={`midi-device-toggle ${on ? 'midi-device-toggle--on' : ''}`}
                       onClick={() => toggleDevice(input.id)}
                     >
-                      {isOn ? '연결됨' : '해제됨'}
+                      {on ? '연결됨' : '해제됨'}
                     </button>
                   </div>
                 )
