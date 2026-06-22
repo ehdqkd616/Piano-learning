@@ -51,7 +51,7 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "dist-electron/tray-icon.png"
+      "icon": "electron/app-icon.ico"
     },
     "mac": {
       "target": "dmg"
