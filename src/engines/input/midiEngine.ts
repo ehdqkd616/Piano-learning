@@ -1,4 +1,5 @@
 import type { NoteEvent } from '@/types'
+import { logger } from '@/utils/logger'
 
 type NoteCallback = (event: NoteEvent) => void
 type ConnectionCallback = (inputs: MIDIInput[]) => void
@@ -40,8 +41,8 @@ class MidiEngine {
     this.getInputs().forEach((input) => {
       if (input.onmidimessage) return  // 이미 등록됨
       const id = input.id
+      logger.midi(`MIDI 기기 연결: ${input.name ?? id}`)
       input.onmidimessage = (event: MIDIMessageEvent) => {
-        // 선택 상태를 호출 시점에 확인
         if (this.selectedIds !== null && !this.selectedIds.has(id)) return
         this.handleMessage(event)
       }
@@ -51,6 +52,11 @@ class MidiEngine {
   /** 선택 기기 갱신 — 핸들러 재등록 없이 this.selectedIds만 업데이트 */
   setSelectedInputs(ids: Set<string>): void {
     this.selectedIds = new Set(ids)
+    const names = this.getInputs()
+      .filter((i) => ids.has(i.id))
+      .map((i) => i.name ?? i.id)
+      .join(', ')
+    logger.midi(`MIDI 선택 변경: [${names || '없음'}]`)
   }
 
   getSelectedIds(): Set<string> | null {
@@ -81,8 +87,10 @@ class MidiEngine {
     const command = status & 0xf0
     const channel = status & 0x0f
     if (command === 0x90 && velocity > 0) {
+      logger.note(`NOTE ON  ${note} vel=${velocity} ch=${channel}`)
       this.emit({ noteNumber: note, velocity, timestamp: event.timeStamp, type: 'on', channel, source: 'midi' })
     } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+      logger.note(`NOTE OFF ${note} ch=${channel}`)
       this.emit({ noteNumber: note, velocity: 0, timestamp: event.timeStamp, type: 'off', channel, source: 'midi' })
     }
   }

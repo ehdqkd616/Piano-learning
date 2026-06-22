@@ -8,8 +8,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "electron:dev": "concurrently \"vite\" \"electron .\"",
-    "electron:build": "tsc && vite build && electron-builder",
+    "electron:compile": "tsc -p tsconfig.electron.json && node -e \"const fs=require('fs');['tray-icon.png','log-viewer.html'].forEach(f=>fs.copyFileSync('electron/'+f,'dist-electron/'+f))\"",
+    "electron:dev": "concurrently \"vite\" \"npm run electron:compile && cross-env NODE_ENV=development electron .\"",
+    "electron:build": "npm run electron:compile && vite build && electron-builder",
     "lint": "eslint src --ext ts,tsx"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "@typescript-eslint/parser": "^8.15.0",
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
     "eslint": "^9.15.0",
@@ -48,7 +50,8 @@
       "dist-electron/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "dist-electron/tray-icon.png"
     },
     "mac": {
       "target": "dmg"
