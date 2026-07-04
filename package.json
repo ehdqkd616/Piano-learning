@@ -11,7 +11,8 @@
     "electron:compile": "tsc -p tsconfig.electron.json && node -e \"const fs=require('fs');['tray-icon.png','log-viewer.html'].forEach(f=>fs.copyFileSync('electron/'+f,'dist-electron/'+f))\"",
     "electron:dev": "concurrently \"vite\" \"npm run electron:compile && cross-env NODE_ENV=development electron .\"",
     "electron:build": "npm run electron:compile && vite build && electron-builder",
-    "lint": "eslint src --ext ts,tsx"
+    "lint": "eslint src --ext ts,tsx",
+    "launcher": "electron launcher/main.js"
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.28",

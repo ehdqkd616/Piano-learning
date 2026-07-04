@@ -13,6 +13,12 @@ interface LogEntry { level: string; message: string; time: number }
 const logBuffer: LogEntry[] = []
 const MAX_LOGS = 1000
 
+// 외부 런처(launcher)가 tail 할 수 있도록 로그를 파일에도 기록
+const LOG_FILE = path.join(__dirname, '..', 'logs', 'app.log')
+try {
+  fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true })
+} catch { /* 이미 존재 */ }
+
 function pushLog(level: string, message: string) {
   const entry: LogEntry = { level, message, time: Date.now() }
   logBuffer.push(entry)
@@ -21,6 +27,7 @@ function pushLog(level: string, message: string) {
   if (logWindow && !logWindow.isDestroyed()) {
     logWindow.webContents.send('log-entry', entry)
   }
+  fs.appendFile(LOG_FILE, JSON.stringify(entry) + '\n', () => { /* 실패해도 무시 */ })
 }
 
 // ──── 메인 윈도우 ─────────────────────────────────────────────────
