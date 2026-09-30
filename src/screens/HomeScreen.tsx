@@ -1,8 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/store/useAppStore'
-import { db, initUserProfile } from '@/db'
-import { DEMO_SONGS } from '@/data/demoSongs'
+import { fetchCurrentUser, getSongs, logout } from '@/api'
 import './HomeScreen.css'
 
 export function HomeScreen() {
@@ -11,19 +10,17 @@ export function HomeScreen() {
 
   useEffect(() => {
     async function init() {
-      const u = await initUserProfile()
+      const [u, all] = await Promise.all([fetchCurrentUser(), getSongs()])
       setUser(u)
-
-      // 데모 곡이 없으면 시드
-      const count = await db.songs.count()
-      if (count === 0) {
-        await db.songs.bulkPut(DEMO_SONGS)
-      }
-      const all = await db.songs.toArray()
       setSongs(all)
     }
     init()
   }, [setUser, setSongs])
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   const todaySong = songs[0]
   const recentSongs = songs.slice(0, 3)
@@ -47,6 +44,7 @@ export function HomeScreen() {
               <div className="profile-name">{user.nickname}</div>
               <div className="profile-level">Lv.{user.level}</div>
             </div>
+            <button className="btn-icon" onClick={handleLogout} title="로그아웃">⎋</button>
           </div>
         )}
       </nav>

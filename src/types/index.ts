@@ -48,12 +48,18 @@ export interface UserSettings {
 
 export interface User {
   userId: string;
+  email: string;
   nickname: string;
   level: number;
   totalXP: number;
   streak: number;
   lastPracticeDate: string;
   settings: UserSettings;
+}
+
+export interface SongNote {
+  noteNumber: number;        // MIDI 번호
+  beats: number;              // 4분음표 기준 박자 수
 }
 
 export interface Song {
@@ -70,6 +76,7 @@ export interface Song {
   musicXML: string;
   audioPreview?: string;
   tags: string[];
+  notes: SongNote[];
   isFavorite?: boolean;
 }
 

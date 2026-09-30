@@ -75,6 +75,17 @@
 .profile-name { font-size: 0.875rem; font-weight: 600; }
 .profile-level { font-size: 0.75rem; color: #facc15; }
 
+.sidebar__profile .btn-icon {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px 6px;
+}
+.sidebar__profile .btn-icon:hover { color: #f87171; }
+
 /* 메인 */
 .home-main {
   flex: 1;

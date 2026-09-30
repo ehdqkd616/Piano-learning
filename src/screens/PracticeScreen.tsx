@@ -10,22 +10,27 @@ import { SheetScore } from '@/components/score/SheetScore'
 import { FallingNotes } from '@/components/score/FallingNotes'
 import { PianoKeyboard } from '@/components/piano/PianoKeyboard'
 import { VerdictBadge } from '@/components/feedback/VerdictBadge'
-import { db, saveSession } from '@/db'
-import type { NoteEvent, ScoreNote, Verdict, PracticeSession } from '@/types'
+import { saveSession } from '@/api'
+import type { NoteEvent, ScoreNote, SongNote, Verdict, PracticeSession } from '@/types'
 import './PracticeScreen.css'
 
-function buildDemoNotes(bpm: number): ScoreNote[] {
+function buildScoreNotes(notes: SongNote[], bpm: number): ScoreNote[] {
   const beatMs = (60 / bpm) * 1000
-  const melody = [60, 62, 64, 65, 67, 69, 71, 72]
-  return melody.map((note, i) => ({
-    index: i,
-    noteNumber: note,
-    startTimeMs: i * beatMs,
-    durationMs: beatMs * 0.9,
-    hand: 'right' as const,
-    measure: Math.floor(i / 4),
-    beat: i % 4,
-  }))
+  let timeMs = 0
+  return notes.map((n, i) => {
+    const durationMs = n.beats * beatMs
+    const scoreNote: ScoreNote = {
+      index: i,
+      noteNumber: n.noteNumber,
+      startTimeMs: timeMs,
+      durationMs: durationMs * 0.9,
+      hand: 'right',
+      measure: Math.floor(i / 4),
+      beat: i % 4,
+    }
+    timeMs += durationMs
+    return scoreNote
+  })
 }
 
 export function PracticeScreen() {
@@ -33,6 +38,7 @@ export function PracticeScreen() {
   const navigate = useNavigate()
   const songs = useAppStore((s) => s.songs)
   const user = useAppStore((s) => s.user)
+  const setUser = useAppStore((s) => s.setUser)
 
   const {
     currentSong, scoreNotes, mode, playbackState, bpm,
@@ -56,10 +62,17 @@ export function PracticeScreen() {
   useEffect(() => {
     const song = songs.find((s) => s.songId === songId)
     if (!song) return
-    const notes = buildDemoNotes(song.bpm)
+    const notes = buildScoreNotes(song.notes, song.bpm)
     loadSong(song, notes)
     sessionStartRef.current = new Date().toISOString()
   }, [songId, songs, loadSong])
+
+  const showVerdictFor = useCallback((verdict: Verdict) => {
+    setLastVerdict(verdict)
+    setShowVerdict(true)
+    if (verdictTimer.current) clearTimeout(verdictTimer.current)
+    verdictTimer.current = setTimeout(() => setShowVerdict(false), 700)
+  }, [])
 
   // 시간 타이머 — wait 모드에서는 타겟 노트가 히트라인 도달 시 시간 정지
   useEffect(() => {
@@ -82,29 +95,47 @@ export function PracticeScreen() {
         }
       } else {
         setCurrentTimeMs(elapsed)
+        // 자동 진행 모드: 히트라인을 그냥 지나친 노트는 자동으로 스킵 처리해
+        // currentNoteIndex가 실제로 흘러가는 시간(노트)과 계속 맞물리게 한다.
+        // (이게 없으면 한 노트를 놓쳤을 때 이후 입력이 전부 옛 타겟과 비교되어 계속 MISS로 처리됨)
+        // 유예 시간은 고정값이 아니라 "다음 노트가 시작되기 전까지"로 둬서, 느린 곡/빠른 곡
+        // 모두에서 실제로 칠 수 있는 만큼의 시간을 보장한다.
+        for (;;) {
+          const s = usePracticeStore.getState()
+          const target = s.scoreNotes[s.currentNoteIndex]
+          if (!target) break
+          const nextNote = s.scoreNotes[s.currentNoteIndex + 1]
+          const deadline = nextNote ? nextNote.startTimeMs : target.startTimeMs + target.durationMs + 500
+          if (elapsed <= deadline) break
+
+          s.recordResult({
+            noteIndex: target.index,
+            noteNumber: target.noteNumber,
+            expectedTimeMs: target.startTimeMs,
+            actualTimeMs: elapsed,
+            timingDeltaMs: elapsed - target.startTimeMs,
+            verdict: 'skip',
+          })
+          s.advanceNoteIndex()
+          showVerdictFor('skip')
+        }
       }
 
-      // 모든 노트 완료 확인
+      // 모든 노트 완료 확인 (위에서 자동 스킵으로 인덱스가 바뀌었을 수 있으므로 최신 상태를 다시 읽는다)
+      const latest = usePracticeStore.getState()
       if (
-        state.scoreNotes.length > 0 &&
-        state.currentNoteIndex >= state.scoreNotes.length &&
-        state.playbackState === 'playing'
+        latest.scoreNotes.length > 0 &&
+        latest.currentNoteIndex >= latest.scoreNotes.length &&
+        latest.playbackState === 'playing'
       ) {
-        state.setPlaybackState('finished')
+        latest.setPlaybackState('finished')
       }
 
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [playbackState, setCurrentTimeMs])
-
-  const showVerdictFor = useCallback((verdict: Verdict) => {
-    setLastVerdict(verdict)
-    setShowVerdict(true)
-    if (verdictTimer.current) clearTimeout(verdictTimer.current)
-    verdictTimer.current = setTimeout(() => setShowVerdict(false), 700)
-  }, [])
+  }, [playbackState, setCurrentTimeMs, showVerdictFor])
 
   // MIDI/Mic 이벤트 핸들러
   const handleExternalNoteEvent = useCallback((event: NoteEvent) => {
@@ -124,7 +155,7 @@ export function PracticeScreen() {
 
     if (mode === 'wait') {
       if (matchesTarget(event.noteNumber, target)) {
-        const result = judgeNote({ ...event, timestamp: performance.now() }, target, user?.settings.timingTolerance ?? 100)
+        const result = judgeNote({ ...event, timestamp: performance.now() - startTimeRef.current }, target, user?.settings.timingTolerance ?? 100)
         recordResult(result)
         showVerdictFor(result.verdict)
         advanceNoteIndex()
@@ -151,7 +182,7 @@ export function PracticeScreen() {
 
     if (mode === 'wait') {
       if (matchesTarget(note, target)) {
-        const result = judgeNote(event, target, user?.settings.timingTolerance ?? 100)
+        const result = judgeNote({ ...event, timestamp: performance.now() - startTimeRef.current }, target, user?.settings.timingTolerance ?? 100)
         recordResult(result)
         showVerdictFor(result.verdict)
         advanceNoteIndex()
@@ -229,7 +260,8 @@ export function PracticeScreen() {
       completionRate: 0,
       noteResults: usePracticeStore.getState().noteResults,
     }
-    await saveSession(session)
+    const updatedUser = await saveSession(session)
+    setUser(updatedUser)
     navigate(`/results/${session.sessionId}`)
   }
 

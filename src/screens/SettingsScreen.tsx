@@ -5,7 +5,7 @@ import { usePracticeStore } from '@/store/usePracticeStore'
 import { midiEngine } from '@/engines/input/midiEngine'
 import { audioEngine } from '@/engines/audio/audioEngine'
 import { PianoKeyboard } from '@/components/piano/PianoKeyboard'
-import { db } from '@/db'
+import { updateUserSettings, logout } from '@/api'
 import type { UserSettings, NoteEvent } from '@/types'
 import './SettingsScreen.css'
 
@@ -81,10 +81,15 @@ export function SettingsScreen() {
   }
 
   const handleSave = async () => {
-    updateUser({ nickname, settings })
-    await db.userProfile.update('local-user', { nickname, settings })
+    const updated = await updateUserSettings({ nickname, settings })
+    updateUser(updated)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
   }
 
   const update = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => {
@@ -220,6 +225,9 @@ export function SettingsScreen() {
             <p>Piano Learning v0.1.0</p>
             <p>Web MIDI API: {typeof navigator.requestMIDIAccess === 'function' ? '지원됨' : '미지원 (Chrome/Edge 권장)'}</p>
           </div>
+          <button className="btn btn--danger" style={{ marginTop: '10px' }} onClick={handleLogout}>
+            로그아웃
+          </button>
         </section>
 
         {/* 건반 테스트 — A3(가온도 아래 라)부터 C6까지 */}

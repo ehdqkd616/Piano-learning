@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { db } from '@/db'
+import { getSession, getSong } from '@/api'
 import { calcScore, getStarRating } from '@/engines/judgment/judgmentEngine'
 import type { PracticeSession, Song } from '@/types'
 import './ResultsScreen.css'
@@ -23,11 +23,10 @@ export function ResultsScreen() {
   useEffect(() => {
     async function load() {
       if (!sessionId) return
-      const s = await db.sessions.get(sessionId)
-      if (!s) return
+      const s = await getSession(sessionId)
       setSession(s)
-      const sg = await db.songs.get(s.songId)
-      if (sg) setSong(sg)
+      const sg = await getSong(s.songId)
+      setSong(sg)
     }
     load()
   }, [sessionId])

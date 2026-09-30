@@ -218,4 +218,6 @@
 
 .btn { padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.875rem; background: #2d2d4e; color: #e2e8f0; }
 .btn--primary { background: #3b82f6; color: white; }
+.btn--danger { background: #ef4444; color: white; }
+.btn--danger:hover { background: #dc2626; }
 .btn-icon { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; font-size: 0.9rem; }

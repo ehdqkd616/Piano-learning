@@ -7,6 +7,9 @@ import { ResultsScreen } from '@/screens/ResultsScreen'
 import { CurriculumScreen } from '@/screens/CurriculumScreen'
 import { SettingsScreen } from '@/screens/SettingsScreen'
 import { FreePlayScreen } from '@/screens/FreePlayScreen'
+import { LoginScreen } from '@/screens/LoginScreen'
+import { SignupScreen } from '@/screens/SignupScreen'
+import { RequireAuth } from '@/components/auth/RequireAuth'
 import { audioEngine } from '@/engines/audio/audioEngine'
 
 export function App() {
@@ -42,13 +45,15 @@ export function App() {
         </div>
       )}
       <Routes>
-        <Route path="/" element={<HomeScreen />} />
-        <Route path="/library" element={<LibraryScreen />} />
-        <Route path="/practice/:songId" element={<PracticeScreen />} />
-        <Route path="/results/:sessionId" element={<ResultsScreen />} />
-        <Route path="/curriculum" element={<CurriculumScreen />} />
-        <Route path="/settings" element={<SettingsScreen />} />
-        <Route path="/freeplay" element={<FreePlayScreen />} />
+        <Route path="/login" element={<LoginScreen />} />
+        <Route path="/signup" element={<SignupScreen />} />
+        <Route path="/" element={<RequireAuth><HomeScreen /></RequireAuth>} />
+        <Route path="/library" element={<RequireAuth><LibraryScreen /></RequireAuth>} />
+        <Route path="/practice/:songId" element={<RequireAuth><PracticeScreen /></RequireAuth>} />
+        <Route path="/results/:sessionId" element={<RequireAuth><ResultsScreen /></RequireAuth>} />
+        <Route path="/curriculum" element={<RequireAuth><CurriculumScreen /></RequireAuth>} />
+        <Route path="/settings" element={<RequireAuth><SettingsScreen /></RequireAuth>} />
+        <Route path="/freeplay" element={<RequireAuth><FreePlayScreen /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
