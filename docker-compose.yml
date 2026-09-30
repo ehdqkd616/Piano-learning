@@ -1,0 +1,27 @@
+# 개발용 MySQL — `docker compose up -d mysql`
+# 접속 정보는 server/.env의 DB_* 값과 맞춘다.
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped   # 재부팅 후에도 pm2 서버가 DB에 붙을 수 있도록
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: piano_learning
+      MYSQL_USER: piano
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-pianopass}
+      TZ: UTC
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  mysql-data:
