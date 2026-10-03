@@ -30,12 +30,13 @@ router.post('/:songId/favorite', async (req, res) => {
   const song = songs[0]
   if (!song) return res.status(404).json({ error: '곡을 찾을 수 없습니다.' })
 
-  const [existing] = await pool.execute('SELECT 1 FROM favorites WHERE user_id = ? AND song_id = ?', [req.userId, song.song_id])
-  if (existing.length > 0) {
-    await pool.execute('DELETE FROM favorites WHERE user_id = ? AND song_id = ?', [req.userId, song.song_id])
+  // "조회 후 INSERT/DELETE"는 버튼을 빠르게 두 번 누르면 둘 다 INSERT로 가서 PK 충돌이 났다.
+  // 먼저 지워 보고 지운 행이 없으면 추가한다. 동시에 들어온 INSERT는 IGNORE로 흡수한다.
+  const [deleted] = await pool.execute('DELETE FROM favorites WHERE user_id = ? AND song_id = ?', [req.userId, song.song_id])
+  if (deleted.affectedRows > 0) {
     return res.json({ isFavorite: false })
   }
-  await pool.execute('INSERT INTO favorites (user_id, song_id) VALUES (?, ?)', [req.userId, song.song_id])
+  await pool.execute('INSERT IGNORE INTO favorites (user_id, song_id) VALUES (?, ?)', [req.userId, song.song_id])
   res.json({ isFavorite: true })
 })
 

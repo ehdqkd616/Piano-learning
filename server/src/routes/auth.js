@@ -7,6 +7,9 @@ const { serializeUser } = require('../serializers')
 
 const router = express.Router()
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const MAX_NICKNAME = 50   // users.nickname VARCHAR(50)
+
 const DEFAULT_SETTINGS = {
   inputMode: 'midi',
   bpm: 100,
@@ -27,6 +30,17 @@ router.post('/signup', async (req, res) => {
     return res.status(400).json({ error: '이메일과 8자 이상의 비밀번호가 필요합니다.' })
   }
   const normalizedEmail = email.trim().toLowerCase()
+  if (!EMAIL_RE.test(normalizedEmail) || normalizedEmail.length > 255) {
+    return res.status(400).json({ error: '이메일 형식이 올바르지 않습니다.' })
+  }
+  // bcrypt는 72바이트 이후를 무시하므로 그보다 긴 비밀번호는 받지 않는다
+  if (Buffer.byteLength(password) > 72) {
+    return res.status(400).json({ error: '비밀번호가 너무 깁니다.' })
+  }
+  const finalNickname = (typeof nickname === 'string' && nickname.trim()) || '피아니스트'
+  if (finalNickname.length > MAX_NICKNAME) {
+    return res.status(400).json({ error: `닉네임은 ${MAX_NICKNAME}자 이하여야 합니다.` })
+  }
 
   const [existing] = await pool.execute('SELECT id FROM users WHERE email = ?', [normalizedEmail])
   if (existing.length > 0) {
@@ -35,10 +49,16 @@ router.post('/signup', async (req, res) => {
 
   const id = crypto.randomUUID()
   const passwordHash = await bcrypt.hash(password, 10)
-  await pool.execute(`
-    INSERT INTO users (id, email, password_hash, nickname, settings)
-    VALUES (?, ?, ?, ?, ?)
-  `, [id, normalizedEmail, passwordHash, (nickname || '피아니스트').trim() || '피아니스트', JSON.stringify(DEFAULT_SETTINGS)])
+  try {
+    await pool.execute(`
+      INSERT INTO users (id, email, password_hash, nickname, settings)
+      VALUES (?, ?, ?, ?, ?)
+    `, [id, normalizedEmail, passwordHash, finalNickname, JSON.stringify(DEFAULT_SETTINGS)])
+  } catch (err) {
+    // 위 중복 확인과 INSERT 사이에 같은 이메일 가입이 끼어든 경우 (UNIQUE 제약이 막아 준다)
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '이미 가입된 이메일입니다.' })
+    throw err
+  }
 
   const row = await findUserById(id)
   res.status(201).json({ token: signToken(id), user: serializeUser(row) })
