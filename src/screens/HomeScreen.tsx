@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/store/useAppStore'
 import { fetchCurrentUser, getSongs, logout } from '@/api'
+import { currentStreak } from '@/utils/date'
 import './HomeScreen.css'
 
 export function HomeScreen() {
@@ -63,7 +64,7 @@ export function HomeScreen() {
             <div className="stat-card__label">총 XP</div>
           </div>
           <div className="stat-card">
-            <div className="stat-card__value">{user?.streak ?? 0}</div>
+            <div className="stat-card__value">{user ? currentStreak(user.streak, user.lastPracticeDate) : 0}</div>
             <div className="stat-card__label">연속 연습일 🔥</div>
           </div>
           <div className="stat-card">

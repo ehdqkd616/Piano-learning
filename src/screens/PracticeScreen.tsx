@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { midiEngine } from '@/engines/input/midiEngine'
 import { micEngine } from '@/engines/input/micEngine'
 import { audioEngine } from '@/engines/audio/audioEngine'
-import { judgeNote, matchesTarget } from '@/engines/judgment/judgmentEngine'
+import { judgeNote, matchesTarget, calcScore } from '@/engines/judgment/judgmentEngine'
 import { SheetScore } from '@/components/score/SheetScore'
 import { FallingNotes } from '@/components/score/FallingNotes'
 import { PianoKeyboard } from '@/components/piano/PianoKeyboard'
@@ -57,6 +57,7 @@ export function PracticeScreen() {
   const startTimeRef = useRef<number>(0)
   const rafRef = useRef<number>(0)
   const sessionStartRef = useRef<string>('')
+  const savingRef = useRef(false)
 
   // 곡 로드
   useEffect(() => {
@@ -236,6 +237,9 @@ export function PracticeScreen() {
   const handleStart = async () => {
     await audioEngine.init()
     resetSession()
+    savingRef.current = false
+    // 곡을 연 시각이 아니라 실제로 연주를 시작한 시각을 기록한다
+    sessionStartRef.current = new Date().toISOString()
     startTimeRef.current = performance.now()
     setPlaybackState('playing')
   }
@@ -244,26 +248,43 @@ export function PracticeScreen() {
     setPlaybackState(playbackState === 'playing' ? 'paused' : 'playing')
   }
 
-  const handleFinish = async () => {
-    setPlaybackState('finished')
-    if (!currentSong || !user) return
+  // 연습 기록 저장. 완료 버튼을 누르거나 곡 끝까지 쳐서 자동으로 끝났을 때 한 번만 실행한다.
+  // (예전에는 완료 버튼으로만 저장되어, 끝까지 친 연습은 기록이 남지 않았다)
+  const saveAndShowResults = useCallback(async () => {
+    const { currentSong: song, scoreNotes: notes, noteResults } = usePracticeStore.getState()
+    if (!song || !user || savingRef.current) return
+    savingRef.current = true
+    const score = calcScore(noteResults, notes.length)
     const session: PracticeSession = {
       sessionId: crypto.randomUUID(),
       userId: user.userId,
-      songId: currentSong.songId,
+      songId: song.songId,
       startedAt: sessionStartRef.current,
       endedAt: new Date().toISOString(),
       mode,
-      totalScore: liveScore,
-      pitchAccuracy: 0,
-      timingAccuracy: 0,
-      completionRate: 0,
-      noteResults: usePracticeStore.getState().noteResults,
+      totalScore: score.total,
+      pitchAccuracy: score.pitchAccuracy,
+      timingAccuracy: score.timingAccuracy,
+      completionRate: score.completionRate,
+      noteResults,
     }
-    const updatedUser = await saveSession(session)
-    setUser(updatedUser)
-    navigate(`/results/${session.sessionId}`)
+    try {
+      const updatedUser = await saveSession(session)
+      setUser(updatedUser)
+      navigate(`/results/${session.sessionId}`)
+    } catch (err) {
+      console.error('연습 기록 저장 실패:', err)
+      savingRef.current = false
+    }
+  }, [user, mode, setUser, navigate])
+
+  const handleFinish = () => {
+    setPlaybackState('finished')
   }
+
+  useEffect(() => {
+    if (playbackState === 'finished') saveAndShowResults()
+  }, [playbackState, saveAndShowResults])
 
   if (!currentSong) {
     return (

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getSession, getSong } from '@/api'
-import { calcScore, getStarRating } from '@/engines/judgment/judgmentEngine'
-import type { PracticeSession, Song } from '@/types'
+import { getStarRating } from '@/engines/judgment/judgmentEngine'
+import type { PracticeSession, ScoreBreakdown, Song } from '@/types'
 import './ResultsScreen.css'
 
 const VERDICT_LABEL: Record<string, string> = {
@@ -39,7 +39,14 @@ export function ResultsScreen() {
     )
   }
 
-  const score = calcScore(session.noteResults, session.noteResults.length || 1)
+  // 점수는 연습 화면에서 곡 전체 음표 수 기준으로 계산해 저장한 값을 그대로 쓴다.
+  // (예전에는 여기서 결과 개수를 전체 음표 수로 삼아 다시 계산해서 완주율이 항상 100%였다)
+  const score: ScoreBreakdown = {
+    pitchAccuracy: Math.round(session.pitchAccuracy),
+    timingAccuracy: Math.round(session.timingAccuracy),
+    completionRate: Math.round(session.completionRate),
+    total: session.totalScore,
+  }
   const stars = getStarRating(score.total)
 
   const verdictCounts = session.noteResults.reduce<Record<string, number>>((acc, r) => {
@@ -131,7 +138,7 @@ function ScoreBar({ label, value, color }: { label: string; value: number; color
   )
 }
 
-function generateComment(score: ReturnType<typeof calcScore>): string {
+function generateComment(score: ScoreBreakdown): string {
   if (score.total >= 90) return '훌륭합니다! 거의 완벽한 연주였어요. 더 빠른 템포에 도전해 보세요!'
   if (score.pitchAccuracy < 70) return '음정 정확도를 높이는 데 집중해 보세요. Wait Mode로 천천히 연습하면 도움이 됩니다.'
   if (score.timingAccuracy < 60) return '타이밍 연습이 필요합니다. 템포를 50%로 낮추고 메트로놈과 함께 연습해 보세요.'

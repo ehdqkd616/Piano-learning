@@ -1,5 +1,6 @@
 import { apiFetch, setToken, clearToken, getToken } from './client'
 import type { User, Song, PracticeSession, UserSettings } from '@/types'
+import { toLocalDateString } from '@/utils/date'
 
 export { getToken, clearToken }
 
@@ -56,7 +57,8 @@ export async function toggleFavoriteSong(songId: string): Promise<boolean> {
 export async function saveSession(session: PracticeSession): Promise<User> {
   const { user } = await apiFetch<{ session: PracticeSession; user: User }>('/sessions', {
     method: 'POST',
-    body: JSON.stringify(session),
+    // 스트릭은 서버 UTC가 아니라 사용자 현지 날짜 기준으로 센다
+    body: JSON.stringify({ ...session, localDate: toLocalDateString() }),
   })
   return user
 }

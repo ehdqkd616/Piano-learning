@@ -34,22 +34,28 @@ export function judgeNote(
   }
 }
 
-export function calcScore(results: NoteResult[], total: number): ScoreBreakdown {
-  if (results.length === 0) return { pitchAccuracy: 0, timingAccuracy: 0, completionRate: 0, total: 0 }
+const isHit = (r: NoteResult) => r.verdict !== 'miss' && r.verdict !== 'skip'
 
-  const hit = results.filter((r) => r.verdict !== 'miss' && r.verdict !== 'skip').length
-  const pitchAccuracy = (hit / total) * 100
+// results: 연주 중 기록된 판정 전부 (틀린 건반은 같은 음표에 대해 여러 번 'miss'로 쌓일 수 있다)
+// totalNotes: 곡의 전체 음표 수
+// - 음정 정확도: 누른 건반 중 맞은 비율 (hit ÷ (hit + miss)). 자동으로 지나간 skip은 누른 게 아니므로 제외
+// - 타이밍 정확도: 맞은 건반의 평균 타이밍 오차로 계산. 맞은 게 없으면 0
+// - 완주율: 곡 전체 음표 중 맞게 친 음표의 비율. 중간에 끝내면 그만큼 낮아진다
+export function calcScore(results: NoteResult[], totalNotes: number): ScoreBreakdown {
+  if (results.length === 0 || totalNotes <= 0) return { pitchAccuracy: 0, timingAccuracy: 0, completionRate: 0, total: 0 }
 
-  const timingDeltas = results
-    .filter((r) => r.verdict !== 'miss' && r.verdict !== 'skip')
-    .map((r) => Math.abs(r.timingDeltaMs))
-  const avgDelta = timingDeltas.length
-    ? timingDeltas.reduce((a, b) => a + b, 0) / timingDeltas.length
+  const hits = results.filter(isHit)
+  const pressed = results.filter((r) => r.verdict !== 'skip').length
+  const pitchAccuracy = pressed > 0 ? (hits.length / pressed) * 100 : 0
+
+  const avgDelta = hits.length
+    ? hits.reduce((sum, r) => sum + Math.abs(r.timingDeltaMs), 0) / hits.length
     : 0
   // avgDelta 0ms → 100점, 500ms+ → 0점
-  const timingAccuracy = Math.max(0, 100 - (avgDelta / 5))
+  const timingAccuracy = hits.length ? Math.max(0, 100 - (avgDelta / 5)) : 0
 
-  const completionRate = (results.length / total) * 100
+  const hitNotes = new Set(hits.map((r) => r.noteIndex)).size
+  const completionRate = Math.min(100, (hitNotes / totalNotes) * 100)
 
   const totalScore = pitchAccuracy * 0.5 + timingAccuracy * 0.3 + completionRate * 0.2
 
