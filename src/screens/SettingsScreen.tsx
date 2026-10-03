@@ -29,6 +29,8 @@ export function SettingsScreen() {
   )
   const [nickname, setNickname] = useState(user?.nickname ?? '피아니스트')
   const [saved, setSaved] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [scanMessage, setScanMessage] = useState<string | null>(null)
 
   const pressNote = usePracticeStore((s) => s.pressNote)
   const releaseNote = usePracticeStore((s) => s.releaseNote)
@@ -78,6 +80,30 @@ export function SettingsScreen() {
       midiEngine.setSelectedInputs(base)
       return base
     })
+  }
+
+  const handleRescan = async () => {
+    setScanning(true)
+    setScanMessage(null)
+    const before = new Set(midiInputs.map((i) => i.id))
+    try {
+      const inputs = await midiEngine.rescan()
+      setMidiInputs(inputs)
+      const addedIds = inputs.filter((i) => !before.has(i.id)).map((i) => i.id)
+      const added = addedIds.length
+      // 일부 기기를 꺼 둔 상태라면, 새로 찾은 기기는 켜진 상태로 추가한다 (안 그러면 목록엔 떠도 반응이 없다)
+      const current = midiEngine.getSelectedIds()
+      if (current !== null && added > 0) {
+        const next = new Set([...current, ...addedIds])
+        midiEngine.setSelectedInputs(next)
+        setSelectedIds(next)
+      }
+      setScanMessage(added > 0 ? `새 기기 ${added}개를 찾았습니다.` : `기기 ${inputs.length}개 — 새로 찾은 기기가 없습니다.`)
+    } catch (err) {
+      setScanMessage(err instanceof Error ? err.message : 'MIDI 기기를 검색하지 못했습니다.')
+    } finally {
+      setScanning(false)
+    }
   }
 
   const handleSave = async () => {
@@ -137,26 +163,41 @@ export function SettingsScreen() {
 
           {/* MIDI 기기 선택 */}
           <div className="midi-device-list">
-            <p className="midi-device-list__label">MIDI 기기 선택</p>
-            {midiInputs.length === 0 ? (
+            <div className="midi-device-list__header">
+              <p className="midi-device-list__label">MIDI 기기 선택</p>
+              <button className="midi-rescan-btn" onClick={handleRescan} disabled={scanning}>
+                {scanning ? '검색 중…' : '↻ 기기 다시 검색'}
+              </button>
+            </div>
+            {scanMessage && <p className="midi-scan-message">{scanMessage}</p>}
+            {midiInputs.length === 0 && (
               <p className="settings-hint">MIDI 기기가 감지되지 않았습니다. Chrome/Edge에서 실행하고 기기를 연결하세요.</p>
-            ) : (
-              midiInputs.map((input) => {
-                const on = isDeviceOn(input.id)
-                return (
-                  <div key={input.id} className="midi-device-item">
-                    <span className={`midi-device-dot ${on ? '' : 'midi-device-dot--off'}`} />
-                    <span className="midi-device-name">{input.name ?? 'Unknown'}</span>
-                    <button
-                      className={`midi-device-toggle ${on ? 'midi-device-toggle--on' : ''}`}
-                      onClick={() => toggleDevice(input.id)}
-                    >
-                      {on ? '연결됨' : '해제됨'}
-                    </button>
-                  </div>
-                )
-              })
             )}
+            {midiInputs.map((input) => {
+              const on = isDeviceOn(input.id)
+              return (
+                <div key={input.id} className="midi-device-item">
+                  <span className={`midi-device-dot ${on ? '' : 'midi-device-dot--off'}`} />
+                  <span className="midi-device-name">{input.name ?? 'Unknown'}</span>
+                  <button
+                    className={`midi-device-toggle ${on ? 'midi-device-toggle--on' : ''}`}
+                    onClick={() => toggleDevice(input.id)}
+                  >
+                    {on ? '연결됨' : '해제됨'}
+                  </button>
+                </div>
+              )
+            })}
+            <details className="midi-help">
+              <summary>건반이 목록에 없나요?</summary>
+              <ul>
+                <li>건반을 이 PC(브라우저를 실행 중인 PC)에 연결했는지 확인하세요. 서버 PC에 연결하면 인식되지 않습니다.</li>
+                <li>DAW·건반 전용 프로그램 등 건반을 사용 중인 다른 프로그램을 닫으세요. Windows에서는 한 프로그램만 MIDI 기기를 쓸 수 있는 경우가 많습니다.</li>
+                <li>브라우저를 켠 뒤 건반을 연결했다면, 브라우저 창을 모두 닫고 다시 열어 보세요.</li>
+                <li>Windows 장치 관리자에 건반이 보이는지 확인하세요. 보이지 않으면 케이블(데이터용 USB), 건반의 USB to Host 단자, 제조사 드라이버를 확인하세요.</li>
+                <li>가상 MIDI 장치가 많으면 Windows MIDI 장치 수 제한(약 10개)에 걸릴 수 있습니다. 쓰지 않는 가상 장치를 꺼 보세요.</li>
+              </ul>
+            </details>
           </div>
 
           {settings.inputMode === 'mic' && (

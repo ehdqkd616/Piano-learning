@@ -28,6 +28,34 @@ class MidiEngine {
     return this.getInputs()
   }
 
+  /**
+   * 기기 다시 검색. 기존 MIDIAccess를 버리고 새로 요청해 목록을 다시 받는다.
+   * 브라우저가 연결/해제를 자동으로 알려주지 못한 경우(특히 Windows)를 위한 수동 갱신이다.
+   * 브라우저 자체가 기기를 못 보고 있으면 결과는 같으므로, 그때는 브라우저 재시작이 필요하다.
+   */
+  async rescan(): Promise<MIDIInput[]> {
+    if (!navigator.requestMIDIAccess) {
+      throw new Error('Web MIDI API가 지원되지 않습니다.')
+    }
+    const previous = this.access
+    const next = await navigator.requestMIDIAccess({ sysex: false })
+    if (previous) {
+      // 이전 접근의 핸들러를 떼서, 같은 기기 신호가 두 번 처리되지 않게 한다
+      previous.onstatechange = null
+      previous.inputs.forEach((input) => { input.onmidimessage = null })
+    }
+    this.access = next
+    next.onstatechange = () => {
+      this.ensureHandlers()
+      this.connectionListeners.forEach((cb) => cb(this.getInputs()))
+    }
+    this.ensureHandlers()
+    const inputs = this.getInputs()
+    logger.midi(`MIDI 기기 다시 검색: ${inputs.length}개 [${inputs.map((i) => i.name ?? i.id).join(', ')}]`)
+    this.connectionListeners.forEach((cb) => cb(inputs))
+    return inputs
+  }
+
   getInputs(): MIDIInput[] {
     if (!this.access) return []
     return Array.from(this.access.inputs.values())

@@ -221,3 +221,59 @@
 .btn--danger { background: #ef4444; color: white; }
 .btn--danger:hover { background: #dc2626; }
 .btn-icon { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px; font-size: 0.9rem; }
+
+.midi-device-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.midi-device-list__header .midi-device-list__label {
+  margin: 0;
+}
+
+.midi-rescan-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #3d3d5e;
+  background: #2d2d4e;
+  color: #cbd5e1;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.15s;
+}
+
+.midi-rescan-btn:hover:not(:disabled) {
+  border-color: #60b8ff;
+  color: #60b8ff;
+}
+
+.midi-rescan-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.midi-scan-message {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 0 0 8px;
+}
+
+.midi-help {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.midi-help summary {
+  cursor: pointer;
+  color: #cbd5e1;
+}
+
+.midi-help ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  line-height: 1.6;
+}
