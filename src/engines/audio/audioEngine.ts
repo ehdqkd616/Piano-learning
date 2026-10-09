@@ -39,6 +39,16 @@ class AudioEngine {
     }
   }
 
+  /** 눌려 있는 모든 음을 끈다. 화면을 떠날 때 손을 뗀 신호(note-off)를 못 받아 소리가 남는 것을 막는다 */
+  releaseAll(): void {
+    if (!this.synth) return
+    try {
+      this.synth.releaseAll(Tone.now())
+    } catch { /* ignore */ } finally {
+      this.activeNotes.clear()
+    }
+  }
+
   isReady(): boolean { return this.ready }
 }
 

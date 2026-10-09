@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { midiEngine } from '@/engines/input/midiEngine'
 import { micEngine } from '@/engines/input/micEngine'
 import { audioEngine } from '@/engines/audio/audioEngine'
-import { judgeNote, matchesTarget, calcScore } from '@/engines/judgment/judgmentEngine'
+import { judgeNote, matchesTarget, matchPlayNote, calcScore } from '@/engines/judgment/judgmentEngine'
 import { SheetScore } from '@/components/score/SheetScore'
 import { FallingNotes } from '@/components/score/FallingNotes'
 import { PianoKeyboard } from '@/components/piano/PianoKeyboard'
@@ -44,8 +44,7 @@ export function PracticeScreen() {
     currentSong, scoreNotes, mode, playbackState, bpm,
     liveScore, combo, currentNoteIndex,
     loadSong, setMode, setPlaybackState, resetSession,
-    pressNote, releaseNote, recordResult, advanceNoteIndex,
-    setCurrentTimeMs,
+    pressNote, releaseNote, setCurrentTimeMs,
   } = usePracticeStore()
 
   const [viewMode, setViewMode] = useState<'falling' | 'sheet'>('falling')
@@ -58,6 +57,7 @@ export function PracticeScreen() {
   const rafRef = useRef<number>(0)
   const sessionStartRef = useRef<string>('')
   const savingRef = useRef(false)
+  const pausedAtRef = useRef<number | null>(null)
 
   // 곡 로드
   useEffect(() => {
@@ -123,11 +123,15 @@ export function PracticeScreen() {
       }
 
       // 모든 노트 완료 확인 (위에서 자동 스킵으로 인덱스가 바뀌었을 수 있으므로 최신 상태를 다시 읽는다)
+      // 마지막 음을 누르는 순간 끝내면 손을 떼기 전에 화면이 바뀌어 note-off를 못 받고 소리가 계속 났다.
+      // 마지막 음의 길이만큼 기다렸다가 끝낸다.
       const latest = usePracticeStore.getState()
+      const lastNote = latest.scoreNotes[latest.scoreNotes.length - 1]
       if (
-        latest.scoreNotes.length > 0 &&
+        lastNote &&
         latest.currentNoteIndex >= latest.scoreNotes.length &&
-        latest.playbackState === 'playing'
+        latest.playbackState === 'playing' &&
+        performance.now() - startTimeRef.current >= lastNote.startTimeMs + lastNote.durationMs
       ) {
         latest.setPlaybackState('finished')
       }
@@ -138,6 +142,55 @@ export function PracticeScreen() {
     return () => cancelAnimationFrame(rafRef.current)
   }, [playbackState, setCurrentTimeMs, showVerdictFor])
 
+  // 모든 입력(MIDI·마이크·화면 건반)의 판정은 여기 한 곳을 거친다.
+  // React 렌더 시점의 값이 아니라 store의 최신 상태를 읽는다. 렌더 값으로 판정하면 화면이 갱신되기 전에
+  // 들어온 다음 입력이 이미 판정한 음표와 다시 비교되어, 같은 음을 두 번 맞힌 것으로 처리하고 다음 음표를 건너뛰었다.
+  const judgeInput = useCallback((noteNumber: number) => {
+    const s = usePracticeStore.getState()
+    if (s.playbackState !== 'playing') return  // 시작 전엔 소리만, 판정 없음
+    const target = s.scoreNotes[s.currentNoteIndex]
+    if (!target) return
+
+    const now = performance.now() - startTimeRef.current
+    const tolerance = user?.settings.timingTolerance ?? 100
+    const event: NoteEvent = { noteNumber, velocity: 0, timestamp: now, type: 'on', channel: 0, source: 'virtual' }
+
+    if (s.mode === 'wait') {
+      if (matchesTarget(noteNumber, target)) {
+        const result = judgeNote(event, target, tolerance)
+        s.recordResult(result)
+        showVerdictFor(result.verdict)
+        s.advanceNoteIndex()
+        // wait 모드: 다음 노트 향해 시간 재개 (startTimeRef를 현재 target 시각으로 보정)
+        startTimeRef.current = performance.now() - target.startTimeMs
+      } else {
+        showVerdictFor('miss')
+      }
+      return
+    }
+
+    // 자동 진행 모드: 현재 차례 음표만이 아니라 곧 칠 음표 중 음높이가 맞는 음표를 찾는다
+    const { target: matched, skipped } = matchPlayNote(s.scoreNotes, s.currentNoteIndex, noteNumber, now)
+    if (!matched) {
+      const result = judgeNote(event, target, tolerance)  // 음높이가 달라 miss
+      s.recordResult(result)
+      showVerdictFor(result.verdict)
+      return
+    }
+    skipped.forEach((n) => s.recordResult({
+      noteIndex: n.index,
+      noteNumber: n.noteNumber,
+      expectedTimeMs: n.startTimeMs,
+      actualTimeMs: now,
+      timingDeltaMs: now - n.startTimeMs,
+      verdict: 'skip',
+    }))
+    const result = judgeNote(event, matched, tolerance)
+    s.recordResult(result)
+    showVerdictFor(result.verdict)
+    s.jumpToNoteIndex(matched.index + 1)
+  }, [user, showVerdictFor])
+
   // MIDI/Mic 이벤트 핸들러
   const handleExternalNoteEvent = useCallback((event: NoteEvent) => {
     if (event.type === 'off') {
@@ -145,59 +198,19 @@ export function PracticeScreen() {
       releaseNote(event.noteNumber)
       return
     }
+    // 이미 눌려 있는 음의 note-on은 같은 신호가 다른 MIDI 포트(오디오 인터페이스·가상 포트)로
+    // 한 번 더 들어온 것이다. 실제 건반은 떼지 않고 다시 누를 수 없으므로 무시한다.
+    if (usePracticeStore.getState().activeNotes.has(event.noteNumber)) return
 
     audioEngine.noteOn(event.noteNumber, event.velocity)
     pressNote(event)
-
-    if (playbackState !== 'playing') return  // 시작 전엔 소리만, 판정 없음
-
-    const target = scoreNotes[currentNoteIndex]
-    if (!target) return
-
-    if (mode === 'wait') {
-      if (matchesTarget(event.noteNumber, target)) {
-        const result = judgeNote({ ...event, timestamp: performance.now() - startTimeRef.current }, target, user?.settings.timingTolerance ?? 100)
-        recordResult(result)
-        showVerdictFor(result.verdict)
-        advanceNoteIndex()
-        // wait 모드: 다음 노트 향해 시간 재개 (startTimeRef를 현재 target 시각으로 보정)
-        startTimeRef.current = performance.now() - target.startTimeMs
-      } else {
-        showVerdictFor('miss')
-      }
-    } else {
-      const result = judgeNote({ ...event, timestamp: performance.now() - startTimeRef.current }, target, user?.settings.timingTolerance ?? 100)
-      recordResult(result)
-      showVerdictFor(result.verdict)
-      if (event.noteNumber === target.noteNumber) advanceNoteIndex()
-    }
-  }, [playbackState, scoreNotes, currentNoteIndex, mode, user, pressNote, releaseNote, recordResult, advanceNoteIndex, showVerdictFor])
+    judgeInput(event.noteNumber)
+  }, [pressNote, releaseNote, judgeInput])
 
   // virtual 건반 판정 콜백 (audio/visual은 PianoKeyboard가 이미 처리)
-  const handleVirtualNoteOn = useCallback((note: number, velocity: number) => {
-    if (playbackState !== 'playing') return  // 시작 전엔 소리만
-
-    const target = scoreNotes[currentNoteIndex]
-    if (!target) return
-    const event: NoteEvent = { noteNumber: note, velocity, timestamp: performance.now(), type: 'on', channel: 0, source: 'virtual' }
-
-    if (mode === 'wait') {
-      if (matchesTarget(note, target)) {
-        const result = judgeNote({ ...event, timestamp: performance.now() - startTimeRef.current }, target, user?.settings.timingTolerance ?? 100)
-        recordResult(result)
-        showVerdictFor(result.verdict)
-        advanceNoteIndex()
-        startTimeRef.current = performance.now() - target.startTimeMs
-      } else {
-        showVerdictFor('miss')
-      }
-    } else {
-      const result = judgeNote({ ...event, timestamp: performance.now() - startTimeRef.current }, target, user?.settings.timingTolerance ?? 100)
-      recordResult(result)
-      showVerdictFor(result.verdict)
-      if (note === target.noteNumber) advanceNoteIndex()
-    }
-  }, [playbackState, scoreNotes, currentNoteIndex, mode, user, recordResult, advanceNoteIndex, showVerdictFor])
+  const handleVirtualNoteOn = useCallback((note: number) => {
+    judgeInput(note)
+  }, [judgeInput])
 
   // MIDI 초기화 — 모든 기기 동시 연결
   useEffect(() => {
@@ -238,6 +251,7 @@ export function PracticeScreen() {
     await audioEngine.init()
     resetSession()
     savingRef.current = false
+    pausedAtRef.current = null
     // 곡을 연 시각이 아니라 실제로 연주를 시작한 시각을 기록한다
     sessionStartRef.current = new Date().toISOString()
     startTimeRef.current = performance.now()
@@ -245,7 +259,18 @@ export function PracticeScreen() {
   }
 
   const handlePause = () => {
-    setPlaybackState(playbackState === 'playing' ? 'paused' : 'playing')
+    if (playbackState === 'playing') {
+      pausedAtRef.current = performance.now()
+      setPlaybackState('paused')
+      return
+    }
+    // 멈춰 있던 시간만큼 시작 기준점을 미뤄야 곡 시간이 앞으로 튀지 않는다
+    // (예전에는 재개하면 멈춘 시간만큼 곡이 건너뛰어 그 사이 음표가 모두 skip 처리됐다)
+    if (pausedAtRef.current !== null) {
+      startTimeRef.current += performance.now() - pausedAtRef.current
+      pausedAtRef.current = null
+    }
+    setPlaybackState('playing')
   }
 
   // 연습 기록 저장. 완료 버튼을 누르거나 곡 끝까지 쳐서 자동으로 끝났을 때 한 번만 실행한다.
@@ -283,8 +308,17 @@ export function PracticeScreen() {
   }
 
   useEffect(() => {
-    if (playbackState === 'finished') saveAndShowResults()
+    if (playbackState !== 'finished') return
+    audioEngine.releaseAll()
+    usePracticeStore.getState().releaseAllNotes()
+    saveAndShowResults()
   }, [playbackState, saveAndShowResults])
+
+  // 화면을 떠나면 눌려 있던 음을 모두 끈다 (떠난 뒤 들어오는 note-off는 받을 곳이 없다)
+  useEffect(() => () => {
+    audioEngine.releaseAll()
+    usePracticeStore.getState().releaseAllNotes()
+  }, [])
 
   if (!currentSong) {
     return (

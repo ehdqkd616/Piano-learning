@@ -41,6 +41,8 @@ interface PracticeState {
   releaseNote: (noteNumber: number) => void
   recordResult: (result: NoteResult) => void
   advanceNoteIndex: () => void
+  jumpToNoteIndex: (index: number) => void
+  releaseAllNotes: () => void
   resetSession: () => void
 }
 
@@ -109,16 +111,21 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     }
   }),
 
-  advanceNoteIndex: () => set((state) => {
-    const next = state.currentNoteIndex + 1
-    const nextNote = state.scoreNotes[next]
+  advanceNoteIndex: () => get().jumpToNoteIndex(get().currentNoteIndex + 1),
+
+  // 판정한 음표 다음으로 차례를 옮긴다 (자동 진행 모드에서는 여러 음표를 건너뛸 수 있다)
+  jumpToNoteIndex: (index) => set((state) => {
+    const nextNote = state.scoreNotes[index]
     return {
-      currentNoteIndex: next,
+      currentNoteIndex: index,
       highlightNotes: new Set(nextNote ? [nextNote.noteNumber] : []),
     }
   }),
 
-  resetSession: () => set({
+  releaseAllNotes: () => set({ activeNotes: new Set() }),
+
+  resetSession: () => set((state) => ({
+    highlightNotes: new Set(state.scoreNotes.length > 0 ? [state.scoreNotes[0].noteNumber] : []),
     noteResults: [],
     currentNoteIndex: 0,
     liveScore: 0,
@@ -126,5 +133,5 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     currentTimeMs: 0,
     playbackState: 'idle',
     activeNotes: new Set(),
-  }),
+  })),
 }))

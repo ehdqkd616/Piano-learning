@@ -34,6 +34,14 @@ export function judgeNote(
   }
 }
 
+/** 음표별 최종 판정. 틀린 건반(miss) 뒤에 맞히면 맞힌 판정이 최종이다 */
+export function latestResultFor(results: NoteResult[], noteIndex: number): NoteResult | undefined {
+  for (let i = results.length - 1; i >= 0; i--) {
+    if (results[i].noteIndex === noteIndex) return results[i]
+  }
+  return undefined
+}
+
 const isHit = (r: NoteResult) => r.verdict !== 'miss' && r.verdict !== 'skip'
 
 // results: 연주 중 기록된 판정 전부 (틀린 건반은 같은 음표에 대해 여러 번 'miss'로 쌓일 수 있다)
@@ -72,6 +80,39 @@ export function getStarRating(score: number): 0 | 1 | 2 | 3 {
   if (score >= 70) return 2
   if (score >= 50) return 1
   return 0
+}
+
+// 자동 진행 모드에서 누른 건반이 판정할 음표를 찾는 범위: 음표 시작 시각보다 이만큼 일찍 눌러도 그 음표로 본다
+const EARLY_WINDOW_MS = 300
+
+export interface PlayMatch {
+  /** 판정할 음표 (없으면 null → 틀린 건반) */
+  target: ScoreNote | null
+  /** target 앞에 있어서 친 기회가 지나간 음표들 (skip 처리 대상) */
+  skipped: ScoreNote[]
+}
+
+/**
+ * 자동 진행 모드: 누른 건반을 어느 음표로 판정할지 고른다.
+ * 현재 차례 음표 하나만 보던 예전 방식은, 한 음을 놓친 뒤 다음 음을 살짝 일찍 누르면
+ * 아직 차례가 앞 음이라 '틀린 건반'이 되고 이후 음표까지 연달아 어긋났다.
+ * 지금은 현재 차례부터 시작 시각이 (지금 + EARLY_WINDOW_MS) 이전인 음표 중 음높이가 같은 첫 음표를 고르고,
+ * 그 앞의 음표들은 놓친 것으로 본다.
+ */
+export function matchPlayNote(
+  scoreNotes: ScoreNote[],
+  currentIndex: number,
+  noteNumber: number,
+  timeMs: number,
+): PlayMatch {
+  for (let i = currentIndex; i < scoreNotes.length; i++) {
+    const note = scoreNotes[i]
+    if (note.startTimeMs > timeMs + EARLY_WINDOW_MS) break
+    if (note.noteNumber === noteNumber) {
+      return { target: note, skipped: scoreNotes.slice(currentIndex, i) }
+    }
+  }
+  return { target: null, skipped: [] }
 }
 
 // Wait Mode: 목표 노트 집합과 입력이 일치하는지 확인

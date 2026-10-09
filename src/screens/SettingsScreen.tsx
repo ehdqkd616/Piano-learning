@@ -67,6 +67,8 @@ export function SettingsScreen() {
     return () => {
       midiEngine.off(handleMidiEvent)
       midiEngine.offConnection(handleConnection)
+      // 건반을 누른 채 화면을 떠나면 note-off를 못 받아 소리가 계속 나므로 모두 끈다
+      audioEngine.releaseAll()
       usePracticeStore.getState().resetSession()
     }
   }, [handleMidiEvent])

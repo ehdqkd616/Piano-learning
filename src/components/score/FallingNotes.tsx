@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { ScoreNote, NoteResult } from '@/types'
 import { usePracticeStore } from '@/store/usePracticeStore'
+import { latestResultFor } from '@/engines/judgment/judgmentEngine'
 import './FallingNotes.css'
 
 const FIRST_NOTE = 21
@@ -121,7 +122,7 @@ export function FallingNotes({ notes }: FallingNotesProps) {
         const timeToHit = sn.startTimeMs - now
         if (timeToHit < -300 || timeToHit > LOOK_AHEAD_MS) return
 
-        const result = results.find((r) => r.noteIndex === sn.index)
+        const result = latestResultFor(results, sn.index)
         const progress = 1 - timeToHit / FALL_DURATION_MS
         const y = progress * hitY
 

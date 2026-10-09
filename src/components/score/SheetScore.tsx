@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Renderer, Stave, StaveNote, Voice, Formatter, Accidental } from 'vexflow'
 import type { ScoreNote } from '@/types'
 import { usePracticeStore } from '@/store/usePracticeStore'
+import { latestResultFor } from '@/engines/judgment/judgmentEngine'
 import './SheetScore.css'
 
 // MIDI 노트번호 → VexFlow 음이름 변환
@@ -52,7 +53,7 @@ export function SheetScore({ notes, visibleCount = 8 }: SheetScoreProps) {
       if (accidental) staveNote.addModifier(new Accidental(accidental))
 
       // 판정 결과에 따라 색상
-      const result = noteResults.find((r) => r.noteIndex === sn.index)
+      const result = latestResultFor(noteResults, sn.index)
       if (result) {
         const color = result.verdict === 'perfect' || result.verdict === 'good'
           ? '#4ade80'

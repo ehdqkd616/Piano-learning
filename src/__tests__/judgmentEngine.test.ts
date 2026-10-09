@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcScore, judgeNote, getStarRating } from '@/engines/judgment/judgmentEngine'
+import { calcScore, judgeNote, getStarRating, matchPlayNote, latestResultFor } from '@/engines/judgment/judgmentEngine'
 import type { NoteResult, ScoreNote, Verdict } from '@/types'
 
 const result = (noteIndex: number, verdict: Verdict, timingDeltaMs = 0): NoteResult => ({
@@ -72,5 +72,45 @@ describe('calcScore', () => {
 describe('getStarRating', () => {
   it('90/70/50점 경계', () => {
     expect([95, 90, 89, 70, 69, 50, 49].map(getStarRating)).toEqual([3, 3, 2, 2, 1, 1, 0])
+  })
+})
+
+describe('matchPlayNote (자동 진행 모드)', () => {
+  // 0.5초 간격 음표: 60(0ms) 62(500) 64(1000) 62(1500)
+  const notes: ScoreNote[] = [60, 62, 64, 62].map((noteNumber, index) => ({
+    index, noteNumber, startTimeMs: index * 500, durationMs: 450, hand: 'right', measure: 0, beat: index,
+  }))
+
+  it('현재 차례 음표를 제때 누르면 그 음표로 판정', () => {
+    const m = matchPlayNote(notes, 0, 60, 10)
+    expect(m.target?.index).toBe(0)
+    expect(m.skipped).toEqual([])
+  })
+
+  it('앞 음을 놓치고 다음 음을 살짝 일찍 눌러도 다음 음으로 판정하고, 놓친 음은 skip', () => {
+    // 예전: 현재 차례(60)와만 비교해 miss → 이후 음표까지 연달아 어긋남
+    const m = matchPlayNote(notes, 0, 62, 450)
+    expect(m.target?.index).toBe(1)
+    expect(m.skipped.map((n) => n.index)).toEqual([0])
+  })
+
+  it('너무 먼 미래(300ms 넘게 남은) 음표는 고르지 않는다', () => {
+    expect(matchPlayNote(notes, 0, 64, 100).target).toBeNull()
+  })
+
+  it('같은 음높이가 여러 번 나오면 가장 가까운 차례의 음표를 고른다', () => {
+    expect(matchPlayNote(notes, 1, 62, 500).target?.index).toBe(1)
+  })
+
+  it('맞는 음표가 없으면 target 없음 (틀린 건반)', () => {
+    expect(matchPlayNote(notes, 0, 70, 0)).toEqual({ target: null, skipped: [] })
+  })
+})
+
+describe('latestResultFor', () => {
+  it('틀린 뒤 맞히면 맞힌 판정이 최종', () => {
+    const results = [result(0, 'perfect'), result(1, 'miss'), result(1, 'good')]
+    expect(latestResultFor(results, 1)?.verdict).toBe('good')
+    expect(latestResultFor(results, 2)).toBeUndefined()
   })
 })
