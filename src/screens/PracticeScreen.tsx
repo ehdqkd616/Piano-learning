@@ -320,7 +320,17 @@ export function PracticeScreen() {
     usePracticeStore.getState().releaseAllNotes()
   }, [])
 
-  if (!currentSong) {
+  // 곡 목록은 RequireAuth가 미리 불러오므로, 목록에 없으면 잘못된 주소다
+  if (!songs.some((s) => s.songId === songId)) {
+    return (
+      <div className="practice-screen practice-screen--loading">
+        <p>곡을 찾을 수 없습니다.</p>
+        <button className="btn btn--primary" onClick={() => navigate('/library')}>곡 목록으로</button>
+      </div>
+    )
+  }
+  // 이전에 연습한 곡이 store에 남아 있을 수 있으므로 지금 주소의 곡이 로드됐는지 확인한다
+  if (!currentSong || currentSong.songId !== songId) {
     return (
       <div className="practice-screen practice-screen--loading">
         <p>곡을 불러오는 중...</p>

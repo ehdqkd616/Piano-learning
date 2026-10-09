@@ -42,3 +42,15 @@ select:focus-visible {
   outline: 2px solid #60b8ff;
   outline-offset: 2px;
 }
+
+/* 로그인 후 사용자 정보·곡 목록을 불러오는 동안 (RequireAuth) */
+.app-loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 1.1rem;
+  color: #94a3b8;
+}
