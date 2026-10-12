@@ -4,7 +4,7 @@
 function serializeUser(row) {
   return {
     userId: row.id,
-    email: row.email,
+    username: row.username,
     nickname: row.nickname,
     level: row.level,
     totalXP: row.total_xp,

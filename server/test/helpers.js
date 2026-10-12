@@ -3,12 +3,14 @@ const request = require('supertest')
 const app = require('../src/app')
 const { pool } = require('../src/db')
 
-// 매번 새 이메일로 가입해 테스트끼리 데이터가 섞이지 않게 한다
+// 매번 새 아이디로 가입해 테스트끼리 데이터가 섞이지 않게 한다
+const newUsername = () => `t_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`
+
 async function signup(overrides = {}) {
-  const email = `t-${crypto.randomUUID()}@example.com`
+  const username = newUsername()
   const res = await request(app).post('/api/auth/signup')
-    .send({ email, password: 'password123', nickname: '테스터', ...overrides })
-  return { email, token: res.body.token, user: res.body.user, res }
+    .send({ username, password: 'password123', nickname: '테스터', ...overrides })
+  return { username, token: res.body.token, user: res.body.user, res }
 }
 
 function sessionBody(overrides = {}) {
@@ -33,4 +35,4 @@ function sessionBody(overrides = {}) {
 
 const auth = (token) => ({ Authorization: `Bearer ${token}` })
 
-module.exports = { app, pool, request, signup, sessionBody, auth }
+module.exports = { app, pool, request, signup, newUsername, sessionBody, auth }

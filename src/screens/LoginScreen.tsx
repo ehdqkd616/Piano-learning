@@ -8,7 +8,7 @@ import './AuthScreen.css'
 export function LoginScreen() {
   const navigate = useNavigate()
   const setUser = useAppStore((s) => s.setUser)
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -18,7 +18,7 @@ export function LoginScreen() {
     setError(null)
     setLoading(true)
     try {
-      const user = await login(email, password)
+      const user = await login(username.trim(), password)
       setUser(user)
       navigate('/', { replace: true })
     } catch (err) {
@@ -35,13 +35,14 @@ export function LoginScreen() {
         <p className="auth-card__sub">로그인하고 연습을 이어가세요</p>
 
         <label className="auth-label">
-          이메일
+          아이디
           <input
             className="auth-input"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            autoCapitalize="none"
             required
           />
         </label>

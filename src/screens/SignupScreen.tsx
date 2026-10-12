@@ -9,17 +9,22 @@ export function SignupScreen() {
   const navigate = useNavigate()
   const setUser = useAppStore((s) => s.setUser)
   const [nickname, setNickname] = useState('')
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (password !== confirm) {
+      setError('비밀번호가 일치하지 않습니다.')
+      return
+    }
     setError(null)
     setLoading(true)
     try {
-      const user = await signup(email, password, nickname)
+      const user = await signup(username.trim(), password, nickname)
       setUser(user)
       navigate('/', { replace: true })
     } catch (err) {
@@ -46,13 +51,17 @@ export function SignupScreen() {
           />
         </label>
         <label className="auth-label">
-          이메일
+          아이디 (영문·숫자 3~32자)
           <input
             className="auth-input"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            autoCapitalize="none"
+            pattern="[A-Za-z0-9_\-]{3,32}"
+            title="영문, 숫자, _, - 조합 3~32자"
+            maxLength={32}
             required
           />
         </label>
@@ -63,6 +72,18 @@ export function SignupScreen() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            minLength={8}
+            required
+          />
+        </label>
+        <label className="auth-label">
+          비밀번호 확인
+          <input
+            className="auth-input"
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
             autoComplete="new-password"
             minLength={8}
             required

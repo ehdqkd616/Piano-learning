@@ -4,19 +4,19 @@ import { toLocalDateString } from '@/utils/date'
 
 export { getToken, clearToken }
 
-export async function signup(email: string, password: string, nickname: string): Promise<User> {
+export async function signup(username: string, password: string, nickname: string): Promise<User> {
   const { token, user } = await apiFetch<{ token: string; user: User }>('/auth/signup', {
     method: 'POST',
-    body: JSON.stringify({ email, password, nickname }),
+    body: JSON.stringify({ username, password, nickname }),
   })
   setToken(token)
   return user
 }
 
-export async function login(email: string, password: string): Promise<User> {
+export async function login(username: string, password: string): Promise<User> {
   const { token, user } = await apiFetch<{ token: string; user: User }>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ username, password }),
   })
   setToken(token)
   return user

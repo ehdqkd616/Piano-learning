@@ -48,7 +48,7 @@ export interface UserSettings {
 
 export interface User {
   userId: string;
-  email: string;
+  username: string;
   nickname: string;
   level: number;
   totalXP: number;
