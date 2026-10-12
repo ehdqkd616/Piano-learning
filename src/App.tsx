@@ -9,6 +9,7 @@ import { SettingsScreen } from '@/screens/SettingsScreen'
 import { FreePlayScreen } from '@/screens/FreePlayScreen'
 import { LoginScreen } from '@/screens/LoginScreen'
 import { SignupScreen } from '@/screens/SignupScreen'
+import { AdminScreen } from '@/screens/AdminScreen'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { audioEngine } from '@/engines/audio/audioEngine'
 
@@ -54,6 +55,7 @@ export function App() {
         <Route path="/curriculum" element={<RequireAuth><CurriculumScreen /></RequireAuth>} />
         <Route path="/settings" element={<RequireAuth><SettingsScreen /></RequireAuth>} />
         <Route path="/freeplay" element={<RequireAuth><FreePlayScreen /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAuth><AdminScreen /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

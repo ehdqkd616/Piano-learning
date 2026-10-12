@@ -1,5 +1,7 @@
 .auth-screen {
-  height: 100vh;
+  min-height: 100vh;
+  padding: 32px 16px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -91,3 +93,10 @@
   font-size: 0.8rem;
   padding: 0;
 }
+
+.auth-textarea { resize: vertical; min-height: 56px; font-family: inherit; }
+.auth-terms { font-size: 0.78rem; color: #94a3b8; margin: 0 0 10px; }
+.auth-terms summary { cursor: pointer; color: #cbd5e1; font-weight: 600; }
+.auth-terms p { margin: 6px 0 0; line-height: 1.5; }
+.auth-check { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 8px; }
+.auth-notice { background: #1e3a5f; color: #bfdbfe; border-radius: 8px; padding: 12px; font-size: 0.88rem; line-height: 1.5; margin-bottom: 14px; }

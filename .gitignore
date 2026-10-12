@@ -9,3 +9,4 @@ token.json
 logs/
 server/data/*.db
 server/data/*.db-*
+backups/

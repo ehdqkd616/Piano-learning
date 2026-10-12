@@ -22,7 +22,7 @@ export function LoginScreen() {
       setUser(user)
       navigate('/', { replace: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '로그인에 실패했습니다.')
+      setError(err instanceof ApiError ? (err.reason ? `${err.message} (사유: ${err.reason})` : err.message) : '로그인에 실패했습니다.')
     } finally {
       setLoading(false)
     }

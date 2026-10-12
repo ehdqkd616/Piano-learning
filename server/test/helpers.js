@@ -6,11 +6,17 @@ const { pool } = require('../src/db')
 // 매번 새 아이디로 가입해 테스트끼리 데이터가 섞이지 않게 한다
 const newUsername = () => `t_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`
 
+const signupBody = (username, overrides = {}) =>
+  ({ username, password: 'password123', nickname: '테스터', agreeTerms: true, agreePrivacy: true, ...overrides })
+
+// 가입 → 승인(관리자 대신 DB에서 바로) → 로그인까지 마친 회원. 가입 응답은 res로 돌려준다
 async function signup(overrides = {}) {
   const username = newUsername()
-  const res = await request(app).post('/api/auth/signup')
-    .send({ username, password: 'password123', nickname: '테스터', ...overrides })
-  return { username, token: res.body.token, user: res.body.user, res }
+  const res = await request(app).post('/api/auth/signup').send(signupBody(username, overrides))
+  if (res.status !== 201) return { username, res }
+  await pool.execute("UPDATE users SET status = 'approved' WHERE username = ?", [username])
+  const login = await request(app).post('/api/auth/login').send({ username, password: overrides.password ?? 'password123' })
+  return { username, token: login.body.token, user: login.body.user, res }
 }
 
 function sessionBody(overrides = {}) {
@@ -35,4 +41,4 @@ function sessionBody(overrides = {}) {
 
 const auth = (token) => ({ Authorization: `Bearer ${token}` })
 
-module.exports = { app, pool, request, signup, newUsername, sessionBody, auth }
+module.exports = { app, pool, request, signup, signupBody, newUsername, sessionBody, auth }

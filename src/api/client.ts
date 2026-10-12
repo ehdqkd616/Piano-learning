@@ -14,9 +14,13 @@ export function clearToken() {
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  code?: string
+  reason?: string
+  constructor(status: number, message: string, code?: string, reason?: string) {
     super(message)
     this.status = status
+    this.code = code
+    this.reason = reason
   }
 }
 
@@ -32,7 +36,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   if (!res.ok) {
     if (res.status === 401) clearToken()
     const body = await res.json().catch(() => ({ error: res.statusText }))
-    throw new ApiError(res.status, body.error ?? res.statusText)
+    throw new ApiError(res.status, body.error ?? res.statusText, body.code, body.reason)
   }
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>

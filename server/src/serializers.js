@@ -6,6 +6,7 @@ function serializeUser(row) {
     userId: row.id,
     username: row.username,
     nickname: row.nickname,
+    role: row.role ?? 'user',
     level: row.level,
     totalXP: row.total_xp,
     streak: row.streak,

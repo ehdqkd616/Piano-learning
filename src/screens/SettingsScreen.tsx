@@ -5,7 +5,8 @@ import { usePracticeStore } from '@/store/usePracticeStore'
 import { midiEngine } from '@/engines/input/midiEngine'
 import { audioEngine } from '@/engines/audio/audioEngine'
 import { PianoKeyboard } from '@/components/piano/PianoKeyboard'
-import { updateUserSettings, logout } from '@/api'
+import { updateUserSettings, logout, changePassword } from '@/api'
+import { ApiError } from '@/api/client'
 import type { UserSettings, NoteEvent } from '@/types'
 import './SettingsScreen.css'
 
@@ -148,6 +149,8 @@ export function SettingsScreen() {
           </label>
         </section>
 
+        <PasswordSection isAdmin={user?.username === 'admin'} />
+
         {/* 입력 기기 */}
         <section className="settings-section">
           <h2>입력 기기</h2>
@@ -285,5 +288,56 @@ export function SettingsScreen() {
         </section>
       </div>
     </div>
+  )
+}
+
+function PasswordSection({ isAdmin }: { isAdmin: boolean }) {
+  const [form, setForm] = useState({ current: '', next: '', next2: '' })
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  if (isAdmin) {
+    return (
+      <section className="settings-section">
+        <h2>비밀번호</h2>
+        <p className="settings-hint">관리자 비밀번호는 서버 .env의 ADMIN_PASSWORD로 관리합니다.</p>
+      </section>
+    )
+  }
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (form.next !== form.next2) return setMsg({ ok: false, text: '새 비밀번호 확인이 일치하지 않습니다.' })
+    try {
+      await changePassword(form.current, form.next)
+      setForm({ current: '', next: '', next2: '' })
+      setMsg({ ok: true, text: '비밀번호를 바꿨습니다. 다른 기기에서는 로그아웃됩니다.' })
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof ApiError ? err.message : '비밀번호를 바꾸지 못했습니다.' })
+    }
+  }
+
+  return (
+    <section className="settings-section">
+      <h2>비밀번호 변경</h2>
+      <form onSubmit={submit}>
+        <label className="settings-label">
+          현재 비밀번호
+          <input className="settings-input" type="password" autoComplete="current-password" required
+            value={form.current} onChange={(e) => setForm({ ...form, current: e.target.value })} />
+        </label>
+        <label className="settings-label">
+          새 비밀번호 (8자 이상)
+          <input className="settings-input" type="password" autoComplete="new-password" minLength={8} required
+            value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} />
+        </label>
+        <label className="settings-label">
+          새 비밀번호 확인
+          <input className="settings-input" type="password" autoComplete="new-password" required
+            value={form.next2} onChange={(e) => setForm({ ...form, next2: e.target.value })} />
+        </label>
+        {msg && <p className="settings-hint" style={{ color: msg.ok ? '#4ade80' : '#f87171' }}>{msg.text}</p>}
+        <button className="btn btn--primary" type="submit">변경</button>
+      </form>
+    </section>
   )
 }

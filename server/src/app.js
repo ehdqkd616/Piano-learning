@@ -5,6 +5,7 @@ const authRoutes = require('./routes/auth')
 const songsRoutes = require('./routes/songs')
 const sessionsRoutes = require('./routes/sessions')
 const profileRoutes = require('./routes/profile')
+const adminRoutes = require('./routes/admin')
 
 // 서버 실행(index.js)과 분리해 두어 테스트에서 supertest로 바로 쓸 수 있게 한다
 const app = express()
@@ -16,6 +17,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/songs', songsRoutes)
 app.use('/api/sessions', sessionsRoutes)
 app.use('/api/profile', profileRoutes)
+app.use('/api/admin', adminRoutes)
 
 // Express 5는 async 핸들러에서 던진 에러도 여기로 전달한다.
 // 잘못된 JSON 본문처럼 status가 붙은 4xx 에러는 그대로 돌려준다.

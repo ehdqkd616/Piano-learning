@@ -37,6 +37,9 @@ export function HomeScreen() {
           <li className="sidebar__item" onClick={() => navigate('/library')}>라이브러리</li>
           <li className="sidebar__item" onClick={() => navigate('/curriculum')}>커리큘럼</li>
           <li className="sidebar__item" onClick={() => navigate('/settings')}>설정</li>
+          {user?.role === 'admin' && (
+            <li className="sidebar__item" onClick={() => navigate('/admin')}>관리자</li>
+          )}
         </ul>
         {user && (
           <div className="sidebar__profile">

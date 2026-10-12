@@ -50,6 +50,7 @@ export interface User {
   userId: string;
   username: string;
   nickname: string;
+  role: 'user' | 'admin';
   level: number;
   totalXP: number;
   streak: number;

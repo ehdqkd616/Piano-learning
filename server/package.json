@@ -17,7 +17,8 @@
     "dotenv": "^16.4.7",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.24.5"
+    "mysql2": "^3.24.5",
+    "nodemailer": "^10.1.0"
   },
   "devDependencies": {
     "supertest": "^7.3.1",
